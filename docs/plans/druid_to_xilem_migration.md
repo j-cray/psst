@@ -8,9 +8,9 @@ This document outlines the strategy for migrating `psst-gui` from the [Druid](ht
 
 ### Subtasks
 
-- [ ] **Dependency Management**: Add `xilem` to `Cargo.toml`.
+- [x] **Dependency Management**: Add `xilem` to `Cargo.toml`.
   - Note: Verify compatibility of `xilem` versions with other dependencies.
-- [ ] **State Architecture Analysis**:
+- [x] **State Architecture Analysis**:
   - Review `src/data/` modules. Xilem uses a different state management approach (often strictly immutable or adaptors).
   - Map `druid::Data` traits to standard Rust data structures or Xilem `State`.
 - [ ] **Theming & Resources**:
