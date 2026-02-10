@@ -10,9 +10,14 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, fenix, flake_utils }:
-    flake_utils.lib.eachDefaultSystem (system:
-      let
+  outputs = {
+    self,
+    nixpkgs,
+    fenix,
+    flake-utils,
+  }:
+    flake-utils.lib.eachDefaultSystem (
+      system: let
         pkgs = import nixpkgs {
           inherit system;
         };
@@ -33,19 +38,19 @@
           pango
           atk
           gdk-pixbuf
-          libsoup
-          webkitgtk
+          libsoup_3
+          webkitgtk_4_1
           alsa-lib
           dbus
         ];
-
-      in
-      {
+      in {
         devShells.default = pkgs.mkShell {
-          buildInputs = [
-            toolchain
-            pkgs.pkg-config
-          ] ++ libs;
+          buildInputs =
+            [
+              toolchain
+              pkgs.pkg-config
+            ]
+            ++ libs;
 
           shellHook = ''
             export RUST_SRC_PATH="${toolchain}/lib/rustlib/src/rust/library"
