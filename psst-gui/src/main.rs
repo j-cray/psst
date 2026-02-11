@@ -1,25 +1,16 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![allow(clippy::new_without_default, clippy::type_complexity)]
 
-mod cmd;
-mod controller;
-mod data;
-mod delegate;
-mod error;
-mod ui;
-mod webapi;
-mod widget;
-
 use druid::AppLauncher;
 use env_logger::{Builder, Env};
-use webapi::WebApi;
-
-use psst_core::cache::Cache;
-
-use crate::{
+use psst_gui::webapi::WebApi;
+use psst_gui::{
     data::{AppState, Config},
     delegate::Delegate,
+    ui,
 };
+
+use psst_core::cache::Cache;
 
 const ENV_LOG: &str = "PSST_LOG";
 const ENV_LOG_STYLE: &str = "PSST_LOG_STYLE";

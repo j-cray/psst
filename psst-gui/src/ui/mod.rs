@@ -48,6 +48,7 @@ pub mod recommend;
 pub mod search;
 pub mod show;
 pub mod theme;
+pub mod xilem_theme;
 pub mod track;
 pub mod user;
 pub mod utils;
