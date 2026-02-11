@@ -12,10 +12,10 @@ The current application uses `druid::Data` to manage state changes. The root sta
 
 ### Migration Strategy
 
-1.  **Remove `druid::Data`**: Xilem does not strictly require `Data`. We can derive `PartialEq` for change detection if needed, or simply use `Arc` for cheap cloning.
+1. **Remove `druid::Data`**: Xilem does not strictly require `Data`. We can derive `PartialEq` for change detection if needed, or simply use `Arc` for cheap cloning.
     - `im` crates can be kept (swapping `druid::im` for `im` or `im-rc`).
-2.  **`Promise` Enum**: This can remain largely the same, just removing the `Data` trait bound.
-3.  **App Logic**: Methods on `AppState` (e.g., `navigate`, `start_playback`) are effectively the "Reducer" logic. These can be preserved.
+2. **`Promise` Enum**: This can remain largely the same, just removing the `Data` trait bound.
+3. **App Logic**: Methods on `AppState` (e.g., `navigate`, `start_playback`) are effectively the "Reducer" logic. These can be preserved.
 
 ## Theming (`src/widget/theme.rs` & `src/ui/theme.rs`)
 

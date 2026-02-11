@@ -12,17 +12,20 @@ This plan outlines the creation of a reproducible Nix development environment fo
 ### [Root]
 
 #### [NEW] [flake.nix](file:///home/icarus/dev/projects/psst/flake.nix)
+
 - Defines a devShell using `fenix` for the Rust toolchain (latest stable).
 - Includes system dependencies:
-    - `pkg-config`, `openssl`
-    - GUI libs: `gtk3`, `glib`, `cairo`, `pango`, `atk`, `gdk-pixbuf`, `libsoup`
-    - Wayland/Vulkan support: `wayland`, `libxkbcommon`, `vulkan-loader`
-    - Audio: `alsa-lib`, `dbus`
+  - `pkg-config`, `openssl`
+  - GUI libs: `gtk3`, `glib`, `cairo`, `pango`, `atk`, `gdk-pixbuf`, `libsoup`
+  - Wayland/Vulkan support: `wayland`, `libxkbcommon`, `vulkan-loader`
+  - Audio: `alsa-lib`, `dbus`
 
 #### [NEW] [.envrc](file:///home/icarus/dev/projects/psst/.envrc)
+
 - Enables `direnv` with `use flake`.
 
 #### [MODIFY] [.gitignore](file:///home/icarus/dev/projects/psst/.gitignore)
+
 - Adds `.direnv` to ignore list.
 
 ## Verification Plan

@@ -6,7 +6,7 @@ This document outlines the strategy for migrating `psst-gui` from the [Druid](ht
 
 **Goal:** Establish the foundation for Xilem without breaking the existing Druid application immediately (if possible), or prepare for a clean cutover branch.
 
-### Subtasks
+### Phase 1 Tasks
 
 - [x] **Dependency Management**: Add `xilem` to `Cargo.toml`.
   - Note: Verify compatibility of `xilem` versions with other dependencies.
@@ -21,7 +21,7 @@ This document outlines the strategy for migrating `psst-gui` from the [Druid](ht
 
 **Goal:** Get a "Hello World" window running with Xilem that mimics the main application shell.
 
-### Subtasks
+### Phase 2 Tasks
 
 - [ ] **Entry Point**:
   - Create a parallel entry point (e.g., `examples/xilem_main.rs` or a feature flag) to run Xilem.
@@ -34,7 +34,7 @@ This document outlines the strategy for migrating `psst-gui` from the [Druid](ht
 
 **Goal:** Migrate the reusable building blocks used throughout the app.
 
-### Subtasks
+### Phase 3 Tasks
 
 - [ ] **Icons & SVG**:
   - Migrate icon loading from `src/widget/icons.rs`.
@@ -50,7 +50,7 @@ This document outlines the strategy for migrating `psst-gui` from the [Druid](ht
 
 **Goal:** Port the primary content areas. This can be done incrementally.
 
-### Subtasks
+### Phase 4 Tasks
 
 - [ ] **Playback Control Bar** (`src/ui/playback.rs`):
   - Reimplement the bottom player bar (Play/Pause, Seek, Volume).
@@ -67,7 +67,7 @@ This document outlines the strategy for migrating `psst-gui` from the [Druid](ht
 
 **Goal:** Reconnect the application logic (Spotify Web API, Audio Player) to the new UI.
 
-### Subtasks
+### Phase 5 Tasks
 
 - [ ] **Commands & Delegates**:
   - Refactor `src/delegate.rs` and `src/controller/` to work with Xilem's event handling.
@@ -80,7 +80,7 @@ This document outlines the strategy for migrating `psst-gui` from the [Druid](ht
 
 **Goal:** Finalize the migration and remove legacy code.
 
-### Subtasks
+### Phase 6 Tasks
 
 - [ ] **Visual Polish**:
   - Fine-tune padding, colors, and typography to match or improve upon the original design.
