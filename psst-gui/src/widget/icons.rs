@@ -1,9 +1,3 @@
-use druid::kurbo::{BezPath as DruidBezPath, Rect as DruidRect};
-use druid::{
-    widget::prelude::*, Affine as DruidAffine, Color as DruidColor, Data, KeyOrValue,
-    Size as DruidSize,
-};
-use xilem::core::View;
 use xilem::core::ViewArgument;
 use xilem::masonry::kurbo::{Affine, BezPath, Size};
 use xilem::masonry::layout::AsUnit;
@@ -18,22 +12,6 @@ pub struct SvgIcon {
 }
 
 impl SvgIcon {
-    pub fn scale(&self, target_size: impl Into<DruidSize>) -> Icon {
-        let target_size = target_size.into();
-        let path = DruidBezPath::from_svg(self.svg_path).unwrap_or_default();
-        let scale_x = target_size.width / self.svg_size.width;
-        let scale_y = target_size.height / self.svg_size.height;
-        let scale = scale_x.min(scale_y);
-        let transform = DruidAffine::scale(scale);
-        let path = transform * path;
-        let size = DruidSize::new(self.svg_size.width * scale, self.svg_size.height * scale);
-
-        Icon {
-            path,
-            size,
-            color: DruidColor::WHITE.into(),
-        }
-    }
 
     pub fn view<State: ViewArgument>(
         &self,
@@ -62,38 +40,7 @@ impl SvgIcon {
     }
 }
 
-#[derive(Clone)]
-pub struct Icon {
-    path: DruidBezPath,
-    size: DruidSize,
-    color: KeyOrValue<DruidColor>,
-}
 
-impl Icon {
-    pub fn with_color(mut self, color: impl Into<KeyOrValue<DruidColor>>) -> Self {
-        self.color = color.into();
-        self
-    }
-}
-
-impl<T: Data> Widget<T> for Icon {
-    fn event(&mut self, _ctx: &mut EventCtx, _event: &Event, _data: &mut T, _env: &Env) {}
-    fn lifecycle(&mut self, _ctx: &mut LifeCycleCtx, _event: &LifeCycle, _data: &T, _env: &Env) {}
-    fn update(&mut self, _ctx: &mut UpdateCtx, _old_data: &T, _data: &T, _env: &Env) {}
-    fn layout(
-        &mut self,
-        _ctx: &mut LayoutCtx,
-        _bc: &BoxConstraints,
-        _data: &T,
-        _env: &Env,
-    ) -> DruidSize {
-        self.size
-    }
-    fn paint(&mut self, ctx: &mut PaintCtx, _data: &T, env: &Env) {
-        let color = self.color.resolve(env);
-        ctx.fill(&self.path, &color);
-    }
-}
 
 pub static LOGO: SvgIcon = SvgIcon {
     svg_path: "M2.34146 0.685791L28.5825 26.9268L26.9268 28.5825L0.685791 2.34145L2.34146 0.685791Z M22.2439 11.7073V15.2195C22.2441 15.8464 22.1721 16.4712 22.0295 17.0817L23.9012 18.9512C24.3547 17.7594 24.5865 16.4947 24.5854 15.2195V11.7073H22.2439ZM15.2195 29.2683V25.691C16.6827 25.5282 18.0952 25.0587 19.3646 24.3132L17.6342 22.5841C16.3849 23.1891 15.0025 23.4672 13.6165 23.3925C12.2305 23.3178 10.886 22.8926 9.70906 22.1568C8.53207 21.421 7.56101 20.3986 6.88673 19.1853C6.21245 17.9721 5.85701 16.6076 5.85367 15.2195V11.7073H3.51221V15.2195C3.51221 20.6341 7.61708 25.1063 12.8781 25.691V29.2683H8.19513V31.6098H19.9025V29.2683H15.2195ZM19.9025 14.9539V7.02438C19.9025 3.74194 17.3312 1.17072 14.0488 1.17072C13.029 1.16706 12.0261 1.43096 11.1402 1.93606C10.2542 2.44117 9.5163 3.16981 9.00001 4.04926 M8.19513 13.1437V15.1464C8.19618 16.706 8.81282 18.2022 9.91098 19.3098C10.66 20.0884 11.6134 20.6402 12.6617 20.9017C13.71 21.1633 14.8108 21.1241 15.8378 20.7886L8.19513 13.1437Z",
