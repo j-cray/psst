@@ -8,7 +8,17 @@ use std::{
 #[cfg(target_family = "unix")]
 use std::os::unix::fs::OpenOptionsExt;
 
-use druid::{Data, Lens, Size};
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct Size {
+    pub width: f64,
+    pub height: f64,
+}
+
+impl Size {
+    pub fn new(width: f64, height: f64) -> Self {
+        Self { width, height }
+    }
+}
 use platform_dirs::AppDirs;
 use psst_core::{
     cache::{mkdir_if_not_exists, CacheHandle},
@@ -18,13 +28,12 @@ use psst_core::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::{Nav, Promise, QueueBehavior, SliderScrollScale};
-use crate::ui::theme;
+use super::{Nav, Promise, playback::QueueBehavior, SliderScrollScale};
 
-#[derive(Clone, Debug, Data, Lens)]
+#[derive(Clone, Debug)]
 pub struct Preferences {
     pub active: PreferencesTab,
-    #[data(ignore)]
+    pub theme: Theme,
     pub cache: Option<CacheHandle>,
     pub cache_size: Promise<u64, (), ()>,
     pub auth: Authentication,
@@ -44,7 +53,7 @@ impl Preferences {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Data)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PreferencesTab {
     General,
     Account,
@@ -52,15 +61,14 @@ pub enum PreferencesTab {
     About,
 }
 
-#[derive(Clone, Debug, Data, Lens)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Authentication {
     pub username: String,
     pub password: String,
     pub access_token: String,
+    #[serde(skip)]
     pub result: Promise<(), (), String>,
-    #[data(ignore)]
     pub lastfm_api_key_input: String,
-    #[data(ignore)]
     pub lastfm_api_secret_input: String,
 }
 
@@ -105,14 +113,14 @@ const APP_NAME: &str = "Psst";
 const CONFIG_FILENAME: &str = "config.json";
 const PROXY_ENV_VAR: &str = "SOCKS_PROXY";
 
-#[derive(Clone, Debug, Data, Lens, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
-    #[data(ignore)]
     credentials: Option<Credentials>,
     pub audio_quality: AudioQuality,
     pub theme: Theme,
     pub volume: f64,
+    #[serde(skip)]
     pub last_route: Option<Nav>,
     pub queue_behavior: QueueBehavior,
     pub show_track_cover: bool,
@@ -138,7 +146,7 @@ impl Default for Config {
             last_route: Default::default(),
             queue_behavior: Default::default(),
             show_track_cover: Default::default(),
-            window_size: Size::new(theme::grid(80.0), theme::grid(100.0)),
+            window_size: Size::new(80.0 * 8.0, 100.0 * 8.0), // Hardcoded instead of theme::grid
             slider_scroll_scale: Default::default(),
             sort_order: Default::default(),
             sort_criteria: Default::default(),
@@ -252,7 +260,7 @@ impl Config {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Data, Serialize, Deserialize, Default)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub enum AudioQuality {
     Low,
     Normal,
@@ -270,21 +278,21 @@ impl AudioQuality {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Data, Serialize, Deserialize, Default)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub enum Theme {
     #[default]
     Light,
     Dark,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Data, Serialize, Deserialize, Default)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub enum SortOrder {
     #[default]
     Ascending,
     Descending,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Data, Serialize, Deserialize, Default)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub enum SortCriteria {
     Title,
     Artist,

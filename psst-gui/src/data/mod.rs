@@ -4,7 +4,7 @@ pub mod config;
 mod ctx;
 mod find;
 mod id;
-mod nav;
+pub mod nav;
 mod playback;
 mod playlist;
 mod promise;
@@ -12,9 +12,11 @@ mod recommend;
 mod search;
 mod show;
 mod slider_scroll_scale;
-mod track;
+pub mod track;
 mod user;
 pub mod utils;
+
+use crate::error::Error;
 
 use std::{
     fmt::Display,
@@ -26,10 +28,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use druid::{
-    im::{HashSet, Vector},
-    Data, Lens,
-};
 use psst_core::{item_id::ItemId, session::SessionService};
 
 pub use crate::data::{
@@ -40,9 +38,9 @@ pub use crate::data::{
     config::{AudioQuality, Authentication, Config, Preferences, PreferencesTab, Theme},
     ctx::Ctx,
     find::{FindQuery, Finder, MatchFindQuery},
-    nav::{Nav, Route, SpotifyUrl},
+    nav::{Nav, Route},
     playback::{
-        NowPlaying, Playable, PlayableMatcher, Playback, PlaybackOrigin, PlaybackPayload,
+        NowPlaying, Playable, Playback, PlaybackOrigin, PlaybackPayload,
         PlaybackState, QueueBehavior, QueueEntry,
     },
     playlist::{
@@ -61,16 +59,15 @@ pub use crate::data::{
     user::{PublicUser, UserProfile},
     utils::{Cached, Float64, Image, Page},
 };
-use crate::ui::credits::TrackCredits;
+
 
 pub const ALERT_DURATION: Duration = Duration::from_secs(5);
 
-#[derive(Clone, Data, Lens)]
+#[derive(Clone)]
 pub struct AppState {
-    #[data(ignore)]
     pub session: SessionService,
     pub nav: Nav,
-    pub history: Vector<Nav>,
+    pub history: Vec<Nav>,
     pub config: Config,
     pub preferences: Preferences,
     pub playback: Playback,
@@ -83,11 +80,10 @@ pub struct AppState {
     pub library: Arc<Library>,
     pub common_ctx: Arc<CommonCtx>,
     pub home_detail: HomeDetail,
-    pub alerts: Vector<Alert>,
+    pub alerts: Vec<Alert>,
     pub finder: Finder,
-    pub added_queue: Vector<QueueEntry>,
-    pub lyrics: Promise<Vector<TrackLines>>,
-    pub credits: Option<TrackCredits>,
+    pub added_queue: Vec<QueueEntry>,
+    pub lyrics: Promise<Vec<TrackLines>>,
 }
 
 impl AppState {
@@ -109,23 +105,24 @@ impl AppState {
             state: PlaybackState::Stopped,
             now_playing: None,
             queue_behavior: config.queue_behavior,
-            queue: Vector::new(),
-            volume: config.volume,
+            queue: Vec::new(),
+            volume: Float64(config.volume).into(),
         };
         Self {
             session: SessionService::empty(),
             nav: Nav::Home,
-            history: Vector::new(),
+            history: Vec::new(),
             config,
             preferences: Preferences {
                 active: PreferencesTab::General,
+                theme: Theme::default(),
                 cache: None,
                 cache_size: Promise::Empty,
                 auth: Authentication::new(),
                 lastfm_auth_result: None,
             },
             playback,
-            added_queue: Vector::new(),
+            added_queue: Vec::new(),
             search: Search {
                 input: "".into(),
                 topic: None,
@@ -167,10 +164,9 @@ impl AppState {
             },
             library,
             common_ctx,
-            alerts: Vector::new(),
+            alerts: Vec::new(),
             finder: Finder::new(),
             lyrics: Promise::Empty,
-            credits: None,
         }
     }
 }
@@ -179,17 +175,17 @@ impl AppState {
     pub fn navigate(&mut self, nav: &Nav) {
         if &self.nav != nav {
             let previous = mem::replace(&mut self.nav, nav.to_owned());
-            self.history.push_back(previous);
+            self.history.push(previous);
             self.config.last_route.replace(nav.to_owned());
             Arc::make_mut(&mut self.common_ctx).nav = nav.to_owned();
         }
     }
 
     pub fn navigate_back(&mut self) {
-        if let Some(mut nav) = self.history.pop_back() {
+        if let Some(mut nav) = self.history.pop() {
             if let Nav::SearchResults(query) = &nav {
-                if SpotifyUrl::parse(query).is_some() {
-                    nav = self.history.pop_back().unwrap_or(Nav::Home);
+                if crate::data::nav::SpotifyUrl::parse(query).is_some() {
+                    nav = self.history.pop().unwrap_or(Nav::Home);
                 }
             }
 
@@ -241,7 +237,7 @@ impl AppState {
     }
 
     pub fn add_queued_entry(&mut self, queue_entry: QueueEntry) {
-        self.added_queue.push_back(queue_entry);
+        self.added_queue.push(queue_entry);
     }
 
     pub fn loading_playback(&mut self, item: Playable, origin: PlaybackOrigin) {
@@ -323,7 +319,7 @@ impl AppState {
             id: Alert::fresh_id(),
             created_at: Instant::now(),
         };
-        self.alerts.push_back(alert);
+        self.alerts.push(alert);
     }
 
     pub fn info_alert(&mut self, message: impl Display) {
@@ -345,10 +341,10 @@ impl AppState {
     }
 }
 
-#[derive(Clone, Data, Lens)]
+#[derive(Clone)]
 pub struct Library {
     pub user_profile: Promise<UserProfile>,
-    pub playlists: Promise<Vector<Playlist>>,
+    pub playlists: Promise<Vec<Playlist>>,
     pub saved_albums: Promise<SavedAlbums>,
     pub saved_tracks: Promise<SavedTracks>,
     pub saved_shows: Promise<Shows>,
@@ -358,7 +354,7 @@ impl Library {
     pub fn add_track(&mut self, track: Arc<Track>) {
         if let Some(saved) = self.saved_tracks.resolved_mut() {
             saved.set.insert(track.id);
-            saved.tracks.push_front(track);
+            saved.tracks.insert(0, track);
         }
     }
 
@@ -380,7 +376,7 @@ impl Library {
     pub fn add_album(&mut self, album: Arc<Album>) {
         if let Some(saved) = self.saved_albums.resolved_mut() {
             saved.set.insert(album.id.clone());
-            saved.albums.push_front(album);
+            saved.albums.insert(0, album);
         }
     }
 
@@ -402,7 +398,7 @@ impl Library {
     pub fn add_show(&mut self, show: Arc<Show>) {
         if let Some(saved) = self.saved_shows.resolved_mut() {
             saved.set.insert(show.id.clone());
-            saved.shows.push_front(show);
+            saved.shows.insert(0, show);
         }
     }
 
@@ -423,6 +419,7 @@ impl Library {
 
     pub fn writable_playlists(&self) -> Vec<&Playlist> {
         if let Some(saved) = self.playlists.resolved() {
+            let saved: &Vec<Playlist> = saved;
             saved
                 .iter()
                 .filter(|playlist| {
@@ -440,18 +437,21 @@ impl Library {
 
     pub fn add_playlist(&mut self, playlist: Playlist) {
         if let Some(playlists) = self.playlists.resolved_mut() {
-            playlists.push_back(playlist);
+            let playlists: &mut Vec<Playlist> = playlists;
+            playlists.push(playlist);
         }
     }
 
     pub fn remove_from_playlist(&mut self, id: &str) {
         if let Some(playlists) = self.playlists.resolved_mut() {
+            let playlists: &mut Vec<Playlist> = playlists;
             playlists.retain(|p| p.id.as_ref() != id);
         }
     }
 
     pub fn rename_playlist(&mut self, link: PlaylistLink) {
         if let Some(saved) = self.playlists.resolved_mut() {
+            let saved: &mut Vec<Playlist> = saved;
             for playlist in saved.iter_mut() {
                 if playlist.id == link.id {
                     playlist.name = link.name;
@@ -471,6 +471,7 @@ impl Library {
 
     pub fn contains_playlist(&self, playlist: &Playlist) -> bool {
         if let Some(playlists) = self.playlists.resolved() {
+            let playlists: &Vec<Playlist> = playlists;
             playlists.iter().any(|p| p.id == playlist.id)
         } else {
             false
@@ -479,6 +480,7 @@ impl Library {
 
     pub fn increment_playlist_track_count(&mut self, link: &PlaylistLink) {
         if let Some(saved) = self.playlists.resolved_mut() {
+            let saved: &mut Vec<Playlist> = saved;
             if let Some(playlist) = saved.iter_mut().find(|p| p.id == link.id) {
                 playlist.track_count = playlist.track_count.map(|count| count + 1);
             }
@@ -487,8 +489,9 @@ impl Library {
 
     pub fn decrement_playlist_track_count(&mut self, link: &PlaylistLink) {
         if let Some(saved) = self.playlists.resolved_mut() {
+            let saved: &mut Vec<Playlist> = saved;
             if let Some(playlist) = saved.iter_mut().find(|p| p.id == link.id) {
-                playlist.track_count = playlist.track_count.map(|count| count.saturating_sub(1));
+                playlist.track_count = playlist.track_count.map(|count: usize| count.saturating_sub(1));
             }
         }
     }
@@ -497,55 +500,55 @@ impl Library {
 impl Default for Library {
     fn default() -> Self {
         Library {
-            user_profile: Promise::Empty,
-            playlists: Promise::Empty,
-            saved_albums: Promise::Empty,
-            saved_tracks: Promise::Empty,
-            saved_shows: Promise::Empty,
+            user_profile: Promise::<crate::data::UserProfile, (), Error>::Empty,
+            playlists: Promise::<Vec<crate::data::Playlist>, (), Error>::Empty,
+            saved_albums: Promise::<crate::data::SavedAlbums, (), Error>::Empty,
+            saved_tracks: Promise::<crate::data::SavedTracks, (), Error>::Empty,
+            saved_shows: Promise::<crate::data::Shows, (), Error>::Empty,
         }
     }
 }
 
-#[derive(Clone, Default, Data, Lens)]
+#[derive(Clone, Default)]
 pub struct SavedTracks {
-    pub tracks: Vector<Arc<Track>>,
-    pub set: HashSet<TrackId>,
+    pub tracks: Vec<Arc<Track>>,
+    pub set: std::collections::HashSet<TrackId>,
 }
 
 impl SavedTracks {
-    pub fn new(tracks: Vector<Arc<Track>>) -> Self {
+    pub fn new(tracks: Vec<Arc<Track>>) -> Self {
         let set = tracks.iter().map(|t| t.id).collect();
         Self { tracks, set }
     }
 }
 
-#[derive(Clone, Default, Data, Lens)]
+#[derive(Clone, Default)]
 pub struct SavedAlbums {
-    pub albums: Vector<Arc<Album>>,
-    pub set: HashSet<Arc<str>>,
+    pub albums: Vec<Arc<Album>>,
+    pub set: std::collections::HashSet<Arc<str>>,
 }
 
 impl SavedAlbums {
-    pub fn new(albums: Vector<Arc<Album>>) -> Self {
+    pub fn new(albums: Vec<Arc<Album>>) -> Self {
         let set = albums.iter().map(|a| a.id.clone()).collect();
         Self { albums, set }
     }
 }
 
-#[derive(Clone, Default, Data, Lens)]
+#[derive(Clone, Default)]
 pub struct Shows {
-    pub shows: Vector<Arc<Show>>,
-    pub set: HashSet<Arc<str>>,
+    pub shows: Vec<Arc<Show>>,
+    pub set: std::collections::HashSet<Arc<str>>,
 }
 
 impl Shows {
-    pub fn new(shows: Vector<Arc<Show>>) -> Self {
+    pub fn new(shows: Vec<Arc<Show>>) -> Self {
         let set = shows.iter().map(|a| a.id.clone()).collect();
         Self { shows, set }
     }
 }
 
-#[derive(Clone, Data)]
+#[derive(Clone)]
 pub struct CommonCtx {
     pub now_playing: Option<Playable>,
     pub library: Arc<Library>,
@@ -555,13 +558,13 @@ pub struct CommonCtx {
 
 impl CommonCtx {
     pub fn is_playing(&self, item: &Playable) -> bool {
-        matches!(&self.now_playing, Some(i) if i.same(item))
+        matches!(&self.now_playing, Some(i) if i == item)
     }
 }
 
 pub type WithCtx<T> = Ctx<Arc<CommonCtx>, T>;
 
-#[derive(Clone, Data, Lens)]
+#[derive(Clone)]
 pub struct HomeDetail {
     pub made_for_you: Promise<MixedView>,
     pub user_top_mixes: Promise<MixedView>,
@@ -571,22 +574,24 @@ pub struct HomeDetail {
     pub your_shows: Promise<MixedView>,
     pub shows_that_you_might_like: Promise<MixedView>,
     pub jump_back_in: Promise<MixedView>,
-    pub user_top_tracks: Promise<Vector<Arc<Track>>>,
-    pub user_top_artists: Promise<Vector<Artist>>,
+    pub user_top_tracks: Promise<Vec<Arc<Track>>>,
+    pub user_top_artists: Promise<Vec<Artist>>,
 }
 
-#[derive(Clone, Data, Lens)]
+
+
+#[derive(Clone)]
 pub struct MixedView {
     pub title: Arc<str>,
-    pub playlists: Vector<Playlist>,
-    pub artists: Vector<Artist>,
-    pub albums: Vector<Arc<Album>>,
-    pub shows: Vector<Arc<Show>>,
+    pub playlists: Vec<Playlist>,
+    pub artists: Vec<Artist>,
+    pub albums: Vec<Arc<Album>>,
+    pub shows: Vec<Arc<Show>>,
 }
 
 static ALERT_ID: AtomicUsize = AtomicUsize::new(0);
 
-#[derive(Clone, Data, Lens)]
+#[derive(Clone)]
 pub struct Alert {
     pub id: usize,
     pub message: Arc<str>,
@@ -600,7 +605,7 @@ impl Alert {
     }
 }
 
-#[derive(Clone, Data, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub enum AlertStyle {
     Error,
     Info,

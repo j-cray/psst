@@ -7,8 +7,7 @@ use std::{
     sync::Arc,
 };
 
-use druid::image;
-use druid::ImageBuf;
+use image::DynamicImage as ImageBuf;
 use lru::LruCache;
 use parking_lot::Mutex;
 use psst_core::cache::mkdir_if_not_exists;
@@ -40,7 +39,6 @@ impl WebApiCache {
         self.key("images", &format!("{hash:016x}"))
             .and_then(|path| std::fs::read(path).ok())
             .and_then(|bytes| image::load_from_memory(&bytes).ok())
-            .map(ImageBuf::from_dynamic_image)
     }
 
     pub fn save_image_to_disk(&self, uri: &Arc<str>, data: &[u8]) {

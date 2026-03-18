@@ -1,31 +1,29 @@
 use std::sync::Arc;
 
-use druid::{
-    im::{vector, Vector},
-    Data, Lens,
-};
+use psst_core::item_id::{ItemId, ItemIdType};
 use serde::{Deserialize, Serialize};
 
-use super::{ArtistLink, Float64, Promise, Track, TrackId};
+use crate::data::{
+    ArtistLink, Float64, Promise, Track, TrackId
+};
 
-#[derive(Clone, Data, Lens)]
+#[derive(Clone)]
 pub struct Recommend {
     pub knobs: Arc<RecommendationsKnobs>,
     pub results: Promise<Recommendations, Arc<RecommendationsRequest>>,
 }
 
-#[derive(Clone, Debug, Default, Data, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct RecommendationsRequest {
-    pub seed_artists: Vector<ArtistLink>,
-    pub seed_tracks: Vector<TrackId>,
-    #[serde(skip)]
+    pub seed_artists: Vec<ArtistLink>,
+    pub seed_tracks: Vec<TrackId>,
     pub params: RecommendationsParams,
 }
 
 impl RecommendationsRequest {
     pub fn for_track(id: TrackId) -> Self {
         Self {
-            seed_tracks: vector![id],
+            seed_tracks: vec![id],
             ..Self::default()
         }
     }
@@ -36,7 +34,7 @@ impl RecommendationsRequest {
     }
 }
 
-#[derive(Clone, Debug, Default, Data, Lens)]
+#[derive(Clone, Debug, Default)]
 pub struct RecommendationsKnobs {
     pub duration_ms: Toggled<u64>,
     pub popularity: Toggled<u64>,
@@ -76,7 +74,7 @@ impl RecommendationsKnobs {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, Data, Lens)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct Toggled<T> {
     pub enabled: bool,
     pub value: T,
@@ -102,7 +100,7 @@ impl From<Toggled<f64>> for Option<Float64> {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Data, Lens)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct RecommendationsParams {
     pub duration_ms: Range<u64>,
     pub popularity: Range<u64>,
@@ -121,7 +119,7 @@ pub struct RecommendationsParams {
     pub valence: Range<Float64>,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Data, Lens)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Range<T> {
     pub min: Option<T>,
     pub max: Option<T>,
@@ -134,15 +132,15 @@ impl<T> Range<T> {
     }
 }
 
-#[derive(Clone, Data, Deserialize, Lens)]
+#[derive(Clone, Deserialize)]
 pub struct Recommendations {
     #[serde(skip)]
     pub request: Arc<RecommendationsRequest>,
-    pub seeds: Vector<RecommendationsSeed>,
-    pub tracks: Vector<Arc<Track>>,
+    pub seeds: Vec<RecommendationsSeed>,
+    pub tracks: Vec<Arc<Track>>,
 }
 
-#[derive(Clone, Data, Deserialize, Lens)]
+#[derive(Clone, Deserialize)]
 pub struct RecommendationsSeed {
     #[serde(default)]
     pub after_filtering_size: usize,
@@ -156,7 +154,7 @@ pub struct RecommendationsSeed {
     pub _type: RecommendationsSeedType,
 }
 
-#[derive(Clone, Data, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RecommendationsSeedType {
     Artist,

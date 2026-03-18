@@ -8,11 +8,7 @@ use std::{
     time::Duration,
 };
 
-use druid::{
-    im::Vector,
-    image::{self, ImageFormat},
-    Data, ImageBuf,
-};
+use image::{self, DynamicImage as ImageBuf, ImageFormat};
 
 use itertools::Itertools;
 use log::info;
@@ -28,16 +24,15 @@ use ureq::{
     http::{Response, StatusCode},
     Agent, Body,
 };
-
 use crate::{
     data::{
         self, utils::sanitize_html_string, Album, AlbumType, Artist, ArtistAlbums, ArtistInfo,
-        ArtistLink, ArtistStats, AudioAnalysis, Cached, Episode, EpisodeId, EpisodeLink, Image,
-        MixedView, Nav, Page, Playlist, PublicUser, Range, Recommendations, RecommendationsRequest,
-        SearchResults, SearchTopic, Show, SpotifyUrl, Track, TrackLines, UserProfile,
+        ArtistLink, ArtistStats, AudioAnalysis, Episode, EpisodeId, EpisodeLink, Image,
+        MixedView, Nav, Page, Playlist, Promise, PublicUser, Range, Recommendations, RecommendationsRequest,
+        SearchResults, SearchTopic, Show, nav::SpotifyUrl, Track, UserProfile, utils::Cached,
     },
     error::Error,
-    ui::credits::TrackCredits,
+    data::track::TrackLines,
 };
 
 use super::{cache::WebApiCache, local::LocalTrackManager};
@@ -114,18 +109,18 @@ impl WebApi {
         match request.get_method() {
             Method::Get => configure_request(self.agent.get(&url), &token, request.get_headers())
                 .call()
-                .map_err(|err| Error::WebApiError(err.to_string())),
+                .map_err(|err: ureq::Error| Error::WebApiError(err.to_string())),
             Method::Post => configure_request(self.agent.post(&url), &token, request.get_headers())
                 .send_json(request.get_body())
-                .map_err(|err| Error::WebApiError(err.to_string())),
+                .map_err(|err: ureq::Error| Error::WebApiError(err.to_string())),
             Method::Put => configure_request(self.agent.put(&url), &token, request.get_headers())
                 .send_json(request.get_body())
-                .map_err(|err| Error::WebApiError(err.to_string())),
+                .map_err(|err: ureq::Error| Error::WebApiError(err.to_string())),
             Method::Delete => {
                 configure_request(self.agent.delete(&url), &token, request.get_headers())
                     .force_send_body()
                     .send_json(request.get_body())
-                    .map_err(|err| Error::WebApiError(err.to_string()))
+                    .map_err(|err: ureq::Error| Error::WebApiError(err.to_string()))
             }
         }
     }
@@ -138,8 +133,8 @@ impl WebApi {
                     let retry_after_secs = response
                         .headers()
                         .get("Retry-After")
-                        .and_then(|secs| secs.to_str().ok());
-                    let secs = retry_after_secs.unwrap_or("2").parse::<u64>().unwrap_or(2);
+                        .and_then(|secs: &ureq::http::HeaderValue| secs.to_str().ok());
+                    let secs: u64 = retry_after_secs.unwrap_or("2").parse().unwrap_or(2);
                     thread::sleep(Duration::from_secs(secs));
                 }
                 _ => {
@@ -167,7 +162,7 @@ impl WebApi {
 
     /// Send a request using `self.load()`, but only if it isn't already present
     /// in cache.
-    fn load_cached<T: Data + DeserializeOwned>(
+    fn load_cached<T: Clone + DeserializeOwned>(
         &self,
         request: &RequestBuilder,
         bucket: &str,
@@ -175,7 +170,7 @@ impl WebApi {
     ) -> Result<Cached<T>, Error> {
         if let Some(file) = self.cache.get(bucket, key) {
             let cached_at = file.metadata()?.modified()?;
-            let value = serde_json::from_reader(file)?;
+            let value: T = serde_json::from_reader(file)?;
             Ok(Cached::new(value, cached_at))
         } else {
             let response = Self::with_retry(|| self.request(request))?;
@@ -185,7 +180,7 @@ impl WebApi {
                 reader.read_to_end(&mut body)?;
                 body
             };
-            let value = serde_json::from_slice(&body)?;
+            let value: T = serde_json::from_slice(&body)?;
             self.cache.set(bucket, key, &body);
             Ok(Cached::fresh(value))
         }
@@ -271,11 +266,11 @@ impl WebApi {
     fn load_all_pages<T: DeserializeOwned + Clone>(
         &self,
         request: &RequestBuilder,
-    ) -> Result<Vector<T>, Error> {
-        let mut results = Vector::new();
+    ) -> Result<Vec<T>, Error> {
+        let mut results = Vec::new();
 
-        self.for_all_pages(request, |page| {
-            results.append(page.items);
+        self.for_all_pages(request, |mut page| {
+            results.append(&mut page.items);
             Ok(())
         })?;
 
@@ -287,11 +282,11 @@ impl WebApi {
         &self,
         request: &RequestBuilder,
         number: usize,
-    ) -> Result<Vector<T>, Error> {
-        let mut results = Vector::new();
+    ) -> Result<Vec<T>, Error> {
+        let mut results = Vec::new();
 
-        self.for_some_pages(request, number, |page| {
-            results.append(page.items);
+        self.for_some_pages(request, number, |mut page| {
+            results.append(&mut page.items);
             Ok(())
         })?;
 
@@ -479,10 +474,10 @@ impl WebApi {
         };
 
         let mut title: Arc<str> = Arc::from("");
-        let mut playlist: Vector<Playlist> = Vector::new();
-        let mut album: Vector<Arc<Album>> = Vector::new();
-        let mut artist: Vector<Artist> = Vector::new();
-        let mut show: Vector<Arc<Show>> = Vector::new();
+        let mut playlist: Vec<Playlist> = Vec::new();
+        let mut album: Vec<Arc<Album>> = Vec::new();
+        let mut artist: Vec<Artist> = Vec::new();
+        let mut show: Vec<Arc<Show>> = Vec::new();
 
         result
             .data
@@ -500,11 +495,11 @@ impl WebApi {
 
                     match item.content.data.typename {
                         DataTypename::Playlist => {
-                            playlist.push_back(Playlist {
+                            playlist.push(Playlist {
                                 id: id.into(),
                                 name: Arc::from(item.content.data.name.clone().unwrap()),
                                 images: Some(item.content.data.images.as_ref().map_or_else(
-                                    Vector::new,
+                                    Vec::new,
                                     |images| {
                                         images
                                             .items
@@ -561,13 +556,13 @@ impl WebApi {
                                 public: None,
                             });
                         }
-                        DataTypename::Artist => artist.push_back(Artist {
+                        DataTypename::Artist => artist.push(Artist {
                             id: id.into(),
                             name: Arc::from(
                                 item.content.data.profile.as_ref().unwrap().name.clone(),
                             ),
                             images: item.content.data.visuals.as_ref().map_or_else(
-                                Vector::new,
+                                Vec::new,
                                 |images| {
                                     images
                                         .avatar_image
@@ -582,12 +577,12 @@ impl WebApi {
                                 },
                             ),
                         }),
-                        DataTypename::Album => album.push_back(Arc::new(Album {
+                        DataTypename::Album => album.push(Arc::new(Album {
                             id: id.into(),
                             name: Arc::from(item.content.data.name.clone().unwrap()),
                             album_type: AlbumType::Album,
                             images: item.content.data.cover_art.as_ref().map_or_else(
-                                Vector::new,
+                                Vec::new,
                                 |images| {
                                     images
                                         .sources
@@ -601,7 +596,7 @@ impl WebApi {
                                 },
                             ),
                             artists: item.content.data.artists.as_ref().map_or_else(
-                                Vector::new,
+                                Vec::new,
                                 |artists| {
                                     artists
                                         .items
@@ -620,17 +615,17 @@ impl WebApi {
                                         .collect()
                                 },
                             ),
-                            copyrights: Vector::new(),
+                            copyrights: Vec::new(),
                             label: "".into(),
-                            tracks: Vector::new(),
+                            tracks: Vec::new(),
                             release_date: None,
                             release_date_precision: None,
                         })),
-                        DataTypename::Podcast => show.push_back(Arc::new(Show {
+                        DataTypename::Podcast => show.push(Arc::new(Show {
                             id: id.into(),
                             name: Arc::from(item.content.data.name.clone().unwrap()),
                             images: item.content.data.cover_art.as_ref().map_or_else(
-                                Vector::new,
+                                Vec::new,
                                 |images| {
                                     images
                                         .sources
@@ -697,16 +692,16 @@ impl WebApi {
     }
 
     // https://developer.spotify.com/documentation/web-api/reference/get-users-top-artists-and-tracks
-    pub fn get_user_top_tracks(&self) -> Result<Vector<Arc<Track>>, Error> {
+    pub fn get_user_top_tracks(&self) -> Result<Vec<Arc<Track>>, Error> {
         let request = &RequestBuilder::new("v1/me/top/tracks".to_string(), Method::Get, None)
             .query("market", "from_token");
-        let result: Vector<Arc<Track>> = self.load_some_pages(request, 30)?;
+        let result: Vec<Arc<Track>> = self.load_some_pages(request, 30)?;
 
         Ok(result)
     }
 
-    pub fn get_user_top_artist(&self) -> Result<Vector<Artist>, Error> {
-        #[derive(Clone, Data, Deserialize)]
+    pub fn get_user_top_artist(&self) -> Result<Vec<Artist>, Error> {
+        #[derive(Clone, Deserialize)]
         #[allow(dead_code)]
         struct Artists {
             artists: Artist,
@@ -734,13 +729,13 @@ impl WebApi {
     pub fn get_artist_albums(&self, id: &str) -> Result<ArtistAlbums, Error> {
         let request = &RequestBuilder::new(format!("v1/artists/{id}/albums"), Method::Get, None)
             .query("market", "from_token");
-        let result: Vector<Arc<Album>> = self.load_all_pages(request)?;
+        let result: Vec<Arc<Album>> = self.load_all_pages(request)?;
 
         let mut artist_albums = ArtistAlbums {
-            albums: Vector::new(),
-            singles: Vector::new(),
-            compilations: Vector::new(),
-            appears_on: Vector::new(),
+            albums: Vec::new(),
+            singles: Vec::new(),
+            compilations: Vec::new(),
+            appears_on: Vec::new(),
         };
 
         let mut last_album_release_year = usize::MAX;
@@ -754,32 +749,32 @@ impl WebApi {
                 // NOTE: This will break if an artist has released 'appears_on' albums/singles before their first actual album/single.
                 AlbumType::Album => {
                     if album.release_year_int() > last_album_release_year {
-                        artist_albums.appears_on.push_back(album)
+                        artist_albums.appears_on.push(album)
                     } else {
                         last_album_release_year = album.release_year_int();
-                        artist_albums.albums.push_back(album)
+                        artist_albums.albums.push(album)
                     }
                 }
                 AlbumType::Single => {
                     if album.release_year_int() > last_single_release_year {
-                        artist_albums.appears_on.push_back(album);
+                        artist_albums.appears_on.push(album);
                     } else {
                         last_single_release_year = album.release_year_int();
-                        artist_albums.singles.push_back(album);
+                        artist_albums.singles.push(album);
                     }
                 }
-                AlbumType::Compilation => artist_albums.compilations.push_back(album),
-                AlbumType::AppearsOn => artist_albums.appears_on.push_back(album),
+                AlbumType::Compilation => artist_albums.compilations.push(album),
+                AlbumType::AppearsOn => artist_albums.appears_on.push(album),
             }
         }
         Ok(artist_albums)
     }
 
     // https://developer.spotify.com/documentation/web-api/reference/get-an-artists-top-tracks
-    pub fn get_artist_top_tracks(&self, id: &str) -> Result<Vector<Arc<Track>>, Error> {
+    pub fn get_artist_top_tracks(&self, id: &str) -> Result<Vec<Arc<Track>>, Error> {
         #[derive(Deserialize)]
         struct Tracks {
-            tracks: Vector<Arc<Track>>,
+            tracks: Vec<Arc<Track>>,
         }
         let request =
             &RequestBuilder::new(format!("v1/artists/{id}/top-tracks"), Method::Get, None)
@@ -789,10 +784,10 @@ impl WebApi {
     }
 
     // https://developer.spotify.com/documentation/web-api/reference/get-an-artists-related-artists
-    pub fn get_related_artists(&self, id: &str) -> Result<Cached<Vector<Artist>>, Error> {
-        #[derive(Clone, Data, Deserialize)]
+    pub fn get_related_artists(&self, id: &str) -> Result<Cached<Vec<Artist>>, Error> {
+        #[derive(Clone, Deserialize)]
         struct Artists {
-            artists: Vector<Artist>,
+            artists: Vec<Artist>,
         }
         let request = &RequestBuilder::new(
             format!("v1/artists/{id}/related-artists"),
@@ -804,56 +799,56 @@ impl WebApi {
     }
 
     pub fn get_artist_info(&self, id: &str) -> Result<ArtistInfo, Error> {
-        #[derive(Clone, Data, Deserialize)]
+        #[derive(Clone, Deserialize)]
         pub struct Welcome {
             data: Data1,
         }
 
-        #[derive(Clone, Data, Deserialize)]
+        #[derive(Clone, Deserialize)]
         #[serde(rename_all = "camelCase")]
         pub struct Data1 {
             artist_union: ArtistUnion,
         }
 
-        #[derive(Clone, Data, Deserialize)]
+        #[derive(Clone, Deserialize)]
         pub struct ArtistUnion {
             profile: Profile,
             stats: Stats,
             visuals: Visuals,
         }
 
-        #[derive(Clone, Data, Deserialize)]
+        #[derive(Clone, Deserialize)]
         #[serde(rename_all = "camelCase")]
         pub struct Profile {
             biography: Biography,
             external_links: ExternalLinks,
         }
 
-        #[derive(Clone, Data, Deserialize)]
+        #[derive(Clone, Deserialize)]
         pub struct Biography {
             text: String,
         }
 
-        #[derive(Clone, Data, Deserialize)]
+        #[derive(Clone, Deserialize)]
         pub struct ExternalLinks {
-            items: Vector<ExternalLinksItem>,
+            items: Vec<ExternalLinksItem>,
         }
 
-        #[derive(Clone, Data, Deserialize)]
+        #[derive(Clone, Deserialize)]
         #[serde(rename_all = "camelCase")]
         pub struct Visuals {
             avatar_image: AvatarImage,
         }
-        #[derive(Clone, Data, Deserialize)]
+        #[derive(Clone, Deserialize)]
         pub struct AvatarImage {
-            sources: Vector<Image>,
+            sources: Vec<Image>,
         }
-        #[derive(Clone, Data, Deserialize)]
+        #[derive(Clone, Deserialize)]
         pub struct ExternalLinksItem {
             url: String,
         }
 
-        #[derive(Clone, Data, Deserialize)]
+        #[derive(Clone, Deserialize)]
         #[serde(rename_all = "camelCase")]
         pub struct Stats {
             followers: i64,
@@ -882,7 +877,7 @@ impl WebApi {
                 .header("User-Agent", Self::user_agent());
         let result: Cached<Welcome> = self.load_cached(request, "artist-info", id)?;
 
-        let hrefs: Vector<String> = result
+        let hrefs: Vec<String> = result
             .data
             .data
             .artist_union
@@ -945,10 +940,10 @@ impl WebApi {
     pub fn get_episodes(
         &self,
         ids: impl IntoIterator<Item = EpisodeId>,
-    ) -> Result<Vector<Arc<Episode>>, Error> {
+    ) -> Result<Vec<Arc<Episode>>, Error> {
         #[derive(Deserialize)]
         struct Episodes {
-            episodes: Vector<Arc<Episode>>,
+            episodes: Vec<Arc<Episode>>,
         }
 
         let request = &RequestBuilder::new("v1/episodes", Method::Get, None)
@@ -959,19 +954,19 @@ impl WebApi {
     }
 
     // https://developer.spotify.com/documentation/web-api/reference/get-a-shows-episodes
-    pub fn get_show_episodes(&self, id: &str) -> Result<Vector<Arc<Episode>>, Error> {
+    pub fn get_show_episodes(&self, id: &str) -> Result<Vec<Arc<Episode>>, Error> {
         let request = &RequestBuilder::new(format!("v1/shows/{id}/episodes"), Method::Get, None)
             .query("market", "from_token");
 
-        let mut results = Vector::new();
+        let mut results = Vec::new();
         self.for_all_pages(request, |page: Page<Option<EpisodeLink>>| {
             if !page.items.is_empty() {
                 let ids = page
                     .items
                     .into_iter()
-                    .filter_map(|link| link.map(|link| link.id));
-                let episodes = self.get_episodes(ids)?;
-                results.append(episodes);
+                    .filter_map(|link: Option<EpisodeLink>| link.map(|link| link.id));
+                let mut episodes = self.get_episodes(ids)?;
+                results.append(&mut episodes);
             }
             Ok(())
         })?;
@@ -989,28 +984,19 @@ impl WebApi {
         self.load(request)
     }
 
-    pub fn get_track_credits(&self, track_id: &str) -> Result<TrackCredits, Error> {
-        let request = &RequestBuilder::new(
-            format!("track-credits-view/v0/experimental/{track_id}/credits"),
-            Method::Get,
-            None,
-        )
-        .set_base_uri("spclient.wg.spotify.com");
-        let result: TrackCredits = self.load(request)?;
-        Ok(result)
-    }
 
-    pub fn get_lyrics(&self, track_id: String) -> Result<Vector<TrackLines>, Error> {
-        #[derive(Default, Debug, Clone, PartialEq, Deserialize, Data)]
+
+    pub fn get_lyrics(&self, track_id: String) -> Result<Vec<TrackLines>, Error> {
+        #[derive(Default, Debug, Clone, PartialEq, Deserialize)]
         #[serde(rename_all = "camelCase")]
         pub struct Root {
             pub lyrics: Lyrics,
         }
 
-        #[derive(Default, Debug, Clone, PartialEq, Deserialize, Data)]
+        #[derive(Default, Debug, Clone, PartialEq, Deserialize)]
         #[serde(rename_all = "camelCase")]
         pub struct Lyrics {
-            pub lines: Vector<TrackLines>,
+            pub lines: Vec<TrackLines>,
             pub provider: String,
             pub provider_lyrics_id: String,
         }
@@ -1034,7 +1020,7 @@ impl WebApi {
 /// Library endpoints.
 impl WebApi {
     // https://developer.spotify.com/documentation/web-api/reference/get-users-saved-albums/
-    pub fn get_saved_albums(&self) -> Result<Vector<Arc<Album>>, Error> {
+    pub fn get_saved_albums(&self) -> Result<Vec<Arc<Album>>, Error> {
         #[derive(Clone, Deserialize)]
         struct SavedAlbum {
             album: Arc<Album>,
@@ -1063,7 +1049,7 @@ impl WebApi {
     }
 
     // https://developer.spotify.com/documentation/web-api/reference/get-users-saved-tracks/
-    pub fn get_saved_tracks(&self) -> Result<Vector<Arc<Track>>, Error> {
+    pub fn get_saved_tracks(&self) -> Result<Vec<Arc<Track>>, Error> {
         #[derive(Clone, Deserialize)]
         struct SavedTrack {
             track: Arc<Track>,
@@ -1078,7 +1064,7 @@ impl WebApi {
     }
 
     // https://developer.spotify.com/documentation/web-api/reference/get-users-saved-shows
-    pub fn get_saved_shows(&self) -> Result<Vector<Arc<Show>>, Error> {
+    pub fn get_saved_shows(&self) -> Result<Vec<Arc<Show>>, Error> {
         #[derive(Clone, Deserialize)]
         struct SavedShow {
             show: Arc<Show>,
@@ -1122,7 +1108,7 @@ impl WebApi {
 /// View endpoints.
 impl WebApi {
     pub fn get_user_info(&self) -> Result<(String, String), Error> {
-        #[derive(Deserialize, Clone, Data)]
+        #[derive(Deserialize, Clone)]
         struct User {
             region: String,
             timezone: String,
@@ -1217,9 +1203,9 @@ impl WebApi {
 /// Playlist endpoints.
 impl WebApi {
     // https://developer.spotify.com/documentation/web-api/reference/get-a-list-of-current-users-playlists
-    pub fn get_playlists(&self) -> Result<Vector<Playlist>, Error> {
+    pub fn get_playlists(&self) -> Result<Vec<Playlist>, Error> {
         let request = &RequestBuilder::new("v1/me/playlists", Method::Get, None);
-        let result: Vector<Playlist> = self.load_all_pages(request)?;
+        let result: Vec<Playlist> = self.load_all_pages(request)?;
         Ok(result)
     }
 
@@ -1246,7 +1232,7 @@ impl WebApi {
     }
 
     // https://developer.spotify.com/documentation/web-api/reference/get-playlists-tracks
-    pub fn get_playlist_tracks(&self, id: &str) -> Result<Vector<Arc<Track>>, Error> {
+    pub fn get_playlist_tracks(&self, id: &str) -> Result<Vec<Arc<Track>>, Error> {
         #[derive(Clone, Deserialize)]
         struct PlaylistItem {
             track: OptionalTrack,
@@ -1266,7 +1252,7 @@ impl WebApi {
             .query("marker", "from_token")
             .query("additional_types", "track");
 
-        let result: Vector<PlaylistItem> = self.load_all_pages(request)?;
+        let result: Vec<PlaylistItem> = self.load_all_pages(request)?;
 
         let local_track_manager = self.local_track_manager.lock();
 
@@ -1346,11 +1332,11 @@ impl WebApi {
 
         let result: ApiSearchResults = self.load(request)?;
 
-        let artists = result.artists.map_or_else(Vector::new, |page| page.items);
-        let albums = result.albums.map_or_else(Vector::new, |page| page.items);
-        let tracks = result.tracks.map_or_else(Vector::new, |page| page.items);
-        let playlists = result.playlists.map_or_else(Vector::new, |page| page.items);
-        let shows = result.shows.map_or_else(Vector::new, |page| page.items);
+        let artists = result.artists.map_or_else(Vec::new, |page| page.items);
+        let albums = result.albums.map_or_else(Vec::new, |page| page.items);
+        let tracks = result.tracks.map_or_else(Vec::new, |page| page.items);
+        let playlists = result.playlists.map_or_else(Vec::new, |page| page.items);
+        let shows = result.shows.map_or_else(Vec::new, |page| page.items);
         let topic = (topics.len() == 1).then_some(topics[0]);
 
         Ok(SearchResults {
@@ -1504,7 +1490,7 @@ impl WebApi {
         } else {
             image::load_from_memory(&body)?
         };
-        let image_buf = ImageBuf::from_dynamic_image(image);
+        let image_buf = image;
         self.cache.set_image(uri, image_buf.clone());
         Ok(image_buf)
     }
