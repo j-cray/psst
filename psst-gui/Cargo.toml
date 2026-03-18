@@ -11,6 +11,7 @@ repository = "https://github.com/jpochyla/psst"
 default = ["cpal"]
 cpal = ["psst-core/cpal"]
 cubeb = ["psst-core/cubeb"]
+clipboard = []
 
 [dependencies]
 psst-core = { path = "../psst-core" }

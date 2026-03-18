@@ -43,6 +43,10 @@
           webkitgtk_4_1
           alsa-lib
           dbus
+          fontconfig
+          wayland
+          libxkbcommon
+          vulkan-loader
         ];
       in {
         devShells.default = pkgs.mkShell {
