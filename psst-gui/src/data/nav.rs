@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::data::track::TrackId;

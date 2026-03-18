@@ -11,9 +11,11 @@
   };
 
   outputs = {
+    self,
     nixpkgs,
     fenix,
     flake-utils,
+    ...
   }:
     flake-utils.lib.eachDefaultSystem (
       system: let

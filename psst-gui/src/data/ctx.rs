@@ -1,6 +1,5 @@
 use std::fmt;
 
-use crate::data::Promise;
 
 #[derive(Clone)]
 pub struct Ctx<C, T> {

@@ -2,10 +2,6 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use crate::data::{
-    album::AlbumDetail,
-    artist::ArtistDetail,
-    playlist::PlaylistDetail,
-    show::ShowDetail,
     Album, Artist, Playlist, Promise, Show, Track,
 };
 

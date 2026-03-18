@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use psst_core::item_id::{ItemId, ItemIdType};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use crate::data::{
     ArtistLink, Float64, Promise, Track, TrackId
