@@ -60,6 +60,8 @@ pub use crate::data::{
     utils::{Cached, Float64, Image, Page},
 };
 
+use crate::ui::theme::AppTheme;
+
 
 pub const ALERT_DURATION: Duration = Duration::from_secs(5);
 
@@ -84,6 +86,7 @@ pub struct AppState {
     pub finder: Finder,
     pub added_queue: Vec<QueueEntry>,
     pub lyrics: Promise<Vec<TrackLines>>,
+    pub theme: AppTheme,
 }
 
 impl AppState {
@@ -112,6 +115,7 @@ impl AppState {
             session: SessionService::empty(),
             nav: Nav::Home,
             history: Vec::new(),
+            theme: AppTheme::new(config.theme),
             config,
             preferences: Preferences {
                 active: PreferencesTab::General,
@@ -168,6 +172,12 @@ impl AppState {
             finder: Finder::new(),
             lyrics: Promise::Empty,
         }
+    }
+}
+
+impl xilem::AppState for AppState {
+    fn keep_running(&self) -> bool {
+        true
     }
 }
 
