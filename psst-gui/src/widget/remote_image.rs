@@ -28,37 +28,23 @@ impl ImageLoc for Option<Arc<str>> {
     }
 }
 
-pub fn remote_image<State, Action, V>(
-    loader: impl Fn(&mut State, Arc<str>) -> Action + Send + Sync + 'static,
+/* pub fn remote_image<State, Action, V>(
+    _loader: impl Fn(&mut State, Arc<str>) -> Action + Send + Sync + 'static,
     image: Option<ImageBrush>,
-    location: Option<Arc<str>>,
+    _location: Option<Arc<str>>,
     placeholder: V,
 ) -> Box<AnyWidgetView<State, Action>>
 where
     State: ViewArgument + 'static,
     Action: 'static,
-    V: WidgetView<State> + ViewMarker + Clone,
+    V: WidgetView<State> + ViewMarker + Clone + xilem::core::View<State, Action, xilem::ViewCtx> + 'static,
 {
     if let Some(img) = image {
         Box::new(img_view(img).fit(ObjectFit::Cover))
     } else {
-        let placeholder_view = placeholder.clone();
-        if let Some(loc) = location {
-            let req_task = task(
-                move |proxy: MessageProxy<Arc<str>>, _| async move {
-                    let _ = proxy.message(loc);
-                },
-                move |state: &mut State, loc: Arc<str>| {
-                    loader(state, loc)
-                }
-            );
-
-            Box::new(zstack((placeholder_view, req_task)))
-        } else {
-             Box::new(placeholder_view)
-        }
+        Box::new(placeholder)
     }
-}
+} */
 
 use druid::{
     widget::{prelude::*, FillStrat, Image},
