@@ -1,10 +1,9 @@
 use psst_gui::ui::xilem_theme::AppTheme;
+use xilem::masonry::dpi::LogicalSize;
 use xilem::{
     core::Edit,
-    view::{button, flex, label, Axis},
-    window,
-    winit::dpi::LogicalSize,
-    AppState, EventLoop, WidgetView, WindowId, Xilem,
+    view::{button, flex_col, flex_row, label},
+    window, AppState, EventLoop, WidgetView, WindowId, Xilem,
 };
 
 #[derive(Clone, Debug)]
@@ -32,66 +31,51 @@ impl AppState for MyState {
     }
 }
 
-fn sidebar(state: &MyState) -> impl WidgetView<MyState> {
-    flex(
-        Axis::Vertical,
-        (
-            label("Psst"),
-            label("Sidebar (Playlists)"),
-            button("Home", |state: &mut MyState| {
-                state.nav_title = "Home".to_string()
-            }),
-            button("Tracks", |state: &mut MyState| {
-                state.nav_title = "Saved Tracks".to_string()
-            }),
-            button("Albums", |state: &mut MyState| {
-                state.nav_title = "Saved Albums".to_string()
-            }),
-            button("Toggle Theme", |state: &mut MyState| {
-                state.theme = AppTheme::light();
-            }),
-        ),
-    )
+type AppEdit = Edit<MyState>;
+
+fn sidebar(_state: &MyState) -> impl WidgetView<AppEdit> {
+    flex_col::<AppEdit, _, _>((
+        label("Psst"),
+        label("Sidebar (Playlists)"),
+        button::<AppEdit, _, _, _>(label("Home"), |state| state.nav_title = "Home".to_string()),
+        button::<AppEdit, _, _, _>(label("Tracks"), |state| {
+            state.nav_title = "Saved Tracks".to_string()
+        }),
+        button::<AppEdit, _, _, _>(label("Albums"), |state| {
+            state.nav_title = "Saved Albums".to_string()
+        }),
+        button::<AppEdit, _, _, _>(label("Toggle Theme"), |state| {
+            state.theme = AppTheme::light();
+        }),
+    ))
 }
 
-fn playback_panel(state: &MyState) -> impl WidgetView<MyState> {
-    flex(
-        Axis::Horizontal,
-        (
-            label("Playback Controls"),
-            button("Play/Pause", |state: &mut MyState| {
-                println!("Toggle playback");
-            }),
-        ),
-    )
+fn playback_panel(state: &MyState) -> impl WidgetView<AppEdit> {
+    flex_row::<AppEdit, _, _>((
+        label("Playback Controls"),
+        button::<AppEdit, _, _, _>(label("Play/Pause"), |state| {
+            println!("Toggle playback");
+        }),
+    ))
 }
 
-fn app_logic(state: &mut MyState) -> impl WidgetView<Edit<MyState>> {
-    let topbar = flex(
-        Axis::Horizontal,
-        (
-            label("Back"),
-            label(format!("Current View: {}", state.nav_title)),
-            label("Search"),
-        ),
-    );
+fn app_logic(state: &mut MyState) -> impl WidgetView<AppEdit> {
+    let topbar = flex_row::<AppEdit, _, _>((
+        label("Back"),
+        label(format!("Current View: {}", state.nav_title)),
+        label("Search"),
+    ));
 
-    let main_content = flex(
-        Axis::Vertical,
-        (
-            topbar,
-            label(format!("Counter: {}", state.count)),
-            button("Increment", |state: &mut MyState| state.count += 1),
-        ),
-    );
+    let main_content = flex_col::<AppEdit, _, _>((
+        topbar,
+        label(format!("Counter: {}", state.count)),
+        button::<AppEdit, _, _, _>(label("Increment"), |state| state.count += 1),
+    ));
 
-    flex(
-        Axis::Horizontal,
-        (
-            sidebar(state),
-            flex(Axis::Vertical, (main_content, playback_panel(state))),
-        ),
-    )
+    flex_row::<AppEdit, _, _>((
+        sidebar(state),
+        flex_col::<AppEdit, _, _>((main_content, playback_panel(state))),
+    ))
 }
 
 fn main() {

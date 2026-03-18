@@ -1,9 +1,12 @@
 use std::sync::Arc;
+use xilem::core::{MessageProxy, ViewMarker, ViewArgument};
+use xilem::view::{task, image as img_view, zstack};
+use xilem::masonry::peniko::ImageBrush;
+use xilem::view::ObjectFit;
+use xilem::{ViewCtx, WidgetView, AnyWidgetView};
 
-use druid::{
-    widget::{prelude::*, FillStrat, Image},
-    Data, ImageBuf, Point, Selector, WidgetPod,
-};
+// Legacy exports for Delegate
+use druid::{ImageBuf, Selector};
 
 pub const REQUEST_DATA: Selector<Arc<str>> = Selector::new("remote-image.request-data");
 pub const PROVIDE_DATA: Selector<ImagePayload> = Selector::new("remote-image.provide-data");
@@ -13,6 +16,54 @@ pub struct ImagePayload {
     pub location: Arc<str>,
     pub image_buf: ImageBuf,
 }
+
+// Common trait for data that can provide an image location
+pub trait ImageLoc {
+    fn image_location(&self) -> Option<Arc<str>>;
+}
+
+impl ImageLoc for Option<Arc<str>> {
+    fn image_location(&self) -> Option<Arc<str>> {
+        self.clone()
+    }
+}
+
+pub fn remote_image<State, Action, V>(
+    loader: impl Fn(&mut State, Arc<str>) -> Action + Send + Sync + 'static,
+    image: Option<ImageBrush>,
+    location: Option<Arc<str>>,
+    placeholder: V,
+) -> Box<AnyWidgetView<State, Action>>
+where
+    State: ViewArgument + 'static,
+    Action: 'static,
+    V: WidgetView<State> + ViewMarker + Clone,
+{
+    if let Some(img) = image {
+        Box::new(img_view(img).fit(ObjectFit::Cover))
+    } else {
+        let placeholder_view = placeholder.clone();
+        if let Some(loc) = location {
+            let req_task = task(
+                move |proxy: MessageProxy<Arc<str>>, _| async move {
+                    let _ = proxy.message(loc);
+                },
+                move |state: &mut State, loc: Arc<str>| {
+                    loader(state, loc)
+                }
+            );
+
+            Box::new(zstack((placeholder_view, req_task)))
+        } else {
+             Box::new(placeholder_view)
+        }
+    }
+}
+
+use druid::{
+    widget::{prelude::*, FillStrat, Image},
+    Data, Point, WidgetPod,
+};
 
 pub struct RemoteImage<T> {
     placeholder: WidgetPod<T, Box<dyn Widget<T>>>,
