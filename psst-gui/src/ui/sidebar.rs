@@ -16,5 +16,6 @@ pub fn sidebar() -> impl WidgetView<Edit<AppState>> {
         button(label("Saved Tracks"), |state: &mut AppState| state.navigate(&Nav::SavedTracks)),
         button(label("Saved Albums"), |state: &mut AppState| state.navigate(&Nav::SavedAlbums)),
         button(label("Podcasts"), |state: &mut AppState| state.navigate(&Nav::Shows)),
+        button(label("Settings"), |state: &mut AppState| state.navigate(&Nav::Preferences)),
     ))
 }

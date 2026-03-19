@@ -90,6 +90,7 @@ pub struct AppState {
     pub shutdown: bool,
     pub event_sender: crossbeam_channel::Sender<AppEvent>,
     event_receiver: Option<crossbeam_channel::Receiver<AppEvent>>,
+    pub player_sender: crossbeam_channel::Sender<psst_core::player::PlayerEvent>,
 }
 
 #[derive(Clone, Debug)]
@@ -106,6 +107,8 @@ pub enum AppEvent {
     TopMixesLoaded(Result<crate::data::MixedView, crate::error::Error>),
     BestOfArtistsLoaded(Result<crate::data::MixedView, crate::error::Error>),
     RecommendedStationsLoaded(Result<crate::data::MixedView, crate::error::Error>),
+    SubmitLogin,
+    LoginResult(Result<psst_core::connection::Credentials, String>),
 }
 
 
@@ -199,6 +202,7 @@ impl AppState {
             shutdown: false,
             event_sender,
             event_receiver: Some(event_receiver),
+            player_sender: crossbeam_channel::unbounded().0, // Placeholder until initialized
         }
     }
 

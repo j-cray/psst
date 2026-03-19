@@ -20,6 +20,7 @@ pub enum Route {
     ShowDetail,
     PlaylistDetail,
     Recommendations,
+    Preferences,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
@@ -36,6 +37,7 @@ pub enum Nav {
     PlaylistDetail(PlaylistLink),
     ShowDetail(ShowLink),
     Recommendations(Arc<RecommendationsRequest>),
+    Preferences,
 }
 
 impl Nav {
@@ -52,6 +54,7 @@ impl Nav {
             Nav::PlaylistDetail(_) => Route::PlaylistDetail,
             Nav::ShowDetail(_) => Route::ShowDetail,
             Nav::Recommendations(_) => Route::Recommendations,
+            Nav::Preferences => Route::Preferences,
         }
     }
 
@@ -68,6 +71,7 @@ impl Nav {
             Nav::PlaylistDetail(link) => link.name.to_string(),
             Nav::ShowDetail(link) => link.name.to_string(),
             Nav::Recommendations(_) => "Recommended".to_string(),
+            Nav::Preferences => "Preferences".to_string(),
         }
     }
 
@@ -84,6 +88,7 @@ impl Nav {
             Nav::PlaylistDetail(link) => format!("Playlist \"{}\"", link.name),
             Nav::ShowDetail(link) => format!("Show \"{}\"", link.name),
             Nav::Recommendations(_) => "Recommended".to_string(),
+            Nav::Preferences => "Preferences".to_string(),
         }
     }
 }

@@ -6,7 +6,7 @@ use psst_gui::data::{AppState, Config, nav::Nav};
 
 use psst_gui::ui::{
     home::home_view, playback::playback_bar, sidebar::sidebar, search::search_view,
-    library::library_view, playlist::playlist_detail_view,
+    library::library_view, playlist::playlist_detail_view, preferences::preferences_view,
 };
 
 fn topbar(state: &AppState) -> impl WidgetView<Edit<AppState>> {
@@ -57,11 +57,16 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
         // your_shows, shows_that_you_might_like, uniquely_yours, jump_back_in, user_top_tracks, user_top_artists.
         // They remain permanently empty. We should add fetch logic and AppEvent variants for them.
     }
-    let content = match state.nav {
+    
+    let root_layout = if !state.config.has_credentials() {
+        psst_gui::ui::login::login_view(state).boxed()
+    } else {
+        let content = match state.nav {
         Nav::Home => home_view(state).boxed(),
         Nav::SearchResults(_) => search_view(state).boxed(),
         Nav::SavedTracks | Nav::SavedAlbums | Nav::Shows => library_view(state).boxed(),
         Nav::PlaylistDetail(_) => playlist_detail_view(state).boxed(),
+        Nav::Preferences => preferences_view(state).boxed(),
         _ => label("Unimplemented Route").boxed(),
     };
 
@@ -70,14 +75,17 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
         content,
     ));
 
-    xilem::core::fork(
-        flex_row((
-            sidebar(),
-            flex_col((
-                main_content,
-                playback_bar(state),
-            )),
+    flex_row((
+        sidebar(),
+        flex_col((
+            main_content,
+            playback_bar(state),
         )),
+    )).boxed()
+    };
+
+    xilem::core::fork(
+        root_layout,
         xilem::core::memoize(
             (),
             |()| {
@@ -111,25 +119,30 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
                             psst_gui::data::AppEvent::PlaybackStateChanged => {
                                 // To be implemented when playback controls are wired up 
                             }
-                            // TODO: Sending playback commands through the AppEvent channel is architecturally
-                            // backwards. When the audio backend is wired up, CommandXxx events should go to
-                            // a separate `player_sender` channel, not looped back into the UI receiver.
                             psst_gui::data::AppEvent::CommandPlay(item) => {
-                                log::info!("Backend received Play command for: {}", item.name());
-                                state.info_alert(format!("Playing: {}", item.name()));
-                                // player_sender.send(PlayerCommand::LoadAndPlay { item })
+                                log::info!("Backend received Play command for: {:?}", item.name());
+                                let playback_item = psst_core::player::item::PlaybackItem {
+                                    item_id: item.id(),
+                                    norm_level: psst_core::audio::normalize::NormalizationLevel::Track,
+                                };
+                                let _ = state.player_sender.send(psst_core::player::PlayerEvent::Command(
+                                    psst_core::player::PlayerCommand::LoadAndPlay { item: playback_item }
+                                ));
                             }
                             psst_gui::data::AppEvent::CommandPause => {
-                                log::info!("Backend received Pause command");
-                                state.info_alert("Playback paused".to_string());
+                                let _ = state.player_sender.send(psst_core::player::PlayerEvent::Command(
+                                    psst_core::player::PlayerCommand::Pause
+                                ));
                             }
                             psst_gui::data::AppEvent::CommandResume => {
-                                log::info!("Backend received Resume command");
-                                state.info_alert("Playback resumed".to_string());
+                                let _ = state.player_sender.send(psst_core::player::PlayerEvent::Command(
+                                    psst_core::player::PlayerCommand::Resume
+                                ));
                             }
                             psst_gui::data::AppEvent::CommandStop => {
-                                log::info!("Backend received Stop command");
-                                state.info_alert("Playback stopped".to_string());
+                                let _ = state.player_sender.send(psst_core::player::PlayerEvent::Command(
+                                    psst_core::player::PlayerCommand::Stop
+                                ));
                             }
                             psst_gui::data::AppEvent::MadeForYouLoaded(res) => {
                                 state.home_detail.made_for_you.resolve_or_reject((), res);
@@ -143,6 +156,40 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
                             psst_gui::data::AppEvent::RecommendedStationsLoaded(res) => {
                                 state.home_detail.recommended_stations.resolve_or_reject((), res);
                             }
+                            psst_gui::data::AppEvent::SubmitLogin => {
+                                let auth = state.preferences.auth.clone();
+                                let sender = state.event_sender.clone();
+                                std::thread::spawn(move || {
+                                    let config = auth.session_config();
+                                    let res = psst_gui::data::config::Authentication::authenticate_and_get_credentials(config);
+                                    let _ = sender.send(psst_gui::data::AppEvent::LoginResult(res));
+                                });
+                            }
+                            psst_gui::data::AppEvent::LoginResult(res) => {
+                                state.preferences.auth.result.resolve_or_reject((), res.clone().map(|_| ()));
+                                match res {
+                                    Ok(creds) => {
+                                        state.config.store_credentials(creds);
+                                        let _ = state.config.save();
+                                        state.info_alert("Logged in successfully".to_owned());
+                                        // Update the webapi global session to ensure subsequent requests work
+                                        if let Some(session_config) = state.config.session() {
+                                            let session = psst_core::session::SessionService::with_config(session_config);
+                                            state.session = session.clone();
+                                            let webapi = psst_gui::webapi::WebApi::new(
+                                                session,
+                                                psst_gui::data::Config::proxy().as_deref(),
+                                                psst_gui::data::Config::cache_dir(),
+                                                state.config.paginated_limit,
+                                            );
+                                            webapi.install_as_global();
+                                        }
+                                    }
+                                    Err(err) => {
+                                        state.error_alert(format!("Login failed: {}", err));
+                                    }
+                                }
+                            }
                         }
                     }
                 )
@@ -153,7 +200,7 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
 
 fn main() {
     let config = Config::load().unwrap_or_default();
-    let state = AppState::default_with_config(config.clone());
+    let mut state = AppState::default_with_config(config.clone());
 
     // TODO: Add an authentication flow / session controller interface.
     // The current Xilem implementation is missing a login/auth UI, so if
@@ -165,6 +212,31 @@ fn main() {
         config.paginated_limit,
     );
     webapi.install_as_global();
+    
+    // Initialize audio backend
+    let audio_output = psst_core::audio::output::DefaultAudioOutput::open().expect("Failed to open audio output");
+    let cdn = psst_core::cdn::Cdn::new(state.session.clone(), Config::proxy().as_deref()).expect("Failed to create CDN");
+    let cache = psst_core::cache::Cache::new(Config::cache_dir().unwrap_or_else(|| std::path::PathBuf::from(".cache"))).expect("Failed to create cache");
+    
+    let mut player = psst_core::player::Player::new(
+        state.session.clone(),
+        cdn,
+        cache,
+        psst_core::player::PlaybackConfig::default(),
+        &audio_output,
+    );
+    let player_sender = player.sender();
+    let player_receiver = player.receiver();
+
+    std::thread::spawn(move || {
+        let _audio_output = audio_output;
+        for event in player_receiver {
+            player.handle(event);
+        }
+    });
+    
+    // Inject the real player_sender
+    state.player_sender = player_sender;
 
     let window_options = WindowOptions::new("Psst Xilem")
         .with_min_inner_size(LogicalSize::new(800.0, 600.0))

@@ -1,5 +1,5 @@
 use xilem::{
-    view::{flex_col, label},
+    view::{flex_col, flex_row, label, portal},
     WidgetView,
 };
 use xilem::core::Edit;
@@ -7,11 +7,29 @@ use crate::data::{AppState, Promise, MixedView};
 
 fn render_mixed_view(title: &str, promise: &Promise<MixedView>) -> impl WidgetView<Edit<AppState>> {
     let content = match promise {
-        Promise::Empty => label("..."),
-        Promise::Deferred { .. } => label("Loading..."),
-        // TODO: This is temporary debug output for scaffolding. Should be replaced with real UI.
-        Promise::Resolved { val, .. } => label(format!("Loaded {} items", val.playlists.len() + val.albums.len() + val.artists.len() + val.shows.len())),
-        Promise::Rejected { .. } => label("Failed to load"),
+        Promise::Empty => label("...").boxed(),
+        Promise::Deferred { .. } => label("Loading...").boxed(),
+        Promise::Resolved { val, .. } => {
+            let mut row = Vec::new();
+            for p in &val.playlists {
+                row.push(label(format!("Playlist: {}", p.name)).boxed());
+            }
+            for a in &val.albums {
+                row.push(label(format!("Album: {}", a.name)).boxed());
+            }
+            for art in &val.artists {
+                row.push(label(format!("Artist: {}", art.name)).boxed());
+            }
+            for s in &val.shows {
+                row.push(label(format!("Show: {}", s.name)).boxed());
+            }
+            if row.is_empty() {
+                label("No items").boxed()
+            } else {
+                portal(flex_row(row)).boxed()
+            }
+        }
+        Promise::Rejected { .. } => label("Failed to load").boxed(),
     };
     
     flex_col((
