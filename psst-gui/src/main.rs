@@ -259,6 +259,13 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
 }
 
 fn main() {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+        .filter_module("xilem", log::LevelFilter::Warn)
+        .filter_module("xilem_core", log::LevelFilter::Warn)
+        .filter_module("masonry", log::LevelFilter::Warn)
+        .filter_module("winit", log::LevelFilter::Warn)
+        .init();
+
     let config = Config::load().unwrap_or_default();
     let mut state = AppState::default_with_config(config.clone());
 
