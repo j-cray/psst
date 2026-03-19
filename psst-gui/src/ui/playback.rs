@@ -4,6 +4,7 @@ use xilem::{
 };
 use xilem::core::Edit;
 use crate::data::{AppState, PlaybackState};
+use crate::ui::utils::image_widget;
 
 
 pub fn playback_bar(state: &AppState) -> impl WidgetView<Edit<AppState>> {
@@ -14,8 +15,11 @@ pub fn playback_bar(state: &AppState) -> impl WidgetView<Edit<AppState>> {
     };
     
     let is_playing = state.playback.state == PlaybackState::Playing;
+    
+    let img_url = state.playback.now_playing.as_ref().and_then(|np| np.cover_image_url(300.0, 300.0)).map(|url| url.into());
 
     flex_row((
+        image_widget(state, img_url),
         label(title),
         FlexSpacer::Flex(1.0),
         button(label(if is_playing { "Pause" } else { "Play" }), |s: &mut AppState| {

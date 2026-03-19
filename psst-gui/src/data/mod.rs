@@ -108,6 +108,9 @@ pub enum AppEvent {
     BestOfArtistsLoaded(Result<crate::data::MixedView, crate::error::Error>),
     RecommendedStationsLoaded(Result<crate::data::MixedView, crate::error::Error>),
     SearchResultsLoaded(Result<crate::data::SearchResults, crate::error::Error>),
+    SavedTracksLoaded(Result<crate::data::SavedTracks, crate::error::Error>),
+    SavedAlbumsLoaded(Result<crate::data::SavedAlbums, crate::error::Error>),
+    ImageLoaded(std::sync::Arc<str>),
     SubmitLogin,
     SubmitOAuthLogin(u16),
     LoginResult(Result<psst_core::connection::Credentials, String>),
@@ -557,7 +560,7 @@ impl Default for Library {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct SavedTracks {
     pub tracks: Vec<Arc<Track>>,
     pub set: std::collections::HashSet<TrackId>,
@@ -570,7 +573,7 @@ impl SavedTracks {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct SavedAlbums {
     pub albums: Vec<Arc<Album>>,
     pub set: std::collections::HashSet<Arc<str>>,

@@ -1,5 +1,5 @@
 use xilem::masonry::dpi::LogicalSize;
-use xilem::view::{flex_col, flex_row, label, FlexSpacer};
+use xilem::view::{flex_col, flex_row, label, FlexSpacer, FlexExt};
 use xilem::{EventLoop, WindowOptions, Xilem, WidgetView};
 use xilem::core::Edit;
 use psst_gui::data::{AppState, Config, nav::Nav};
@@ -58,6 +58,25 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
         // They remain permanently empty. We should add fetch logic and AppEvent variants for them.
     }
     
+    if state.config.has_credentials() {
+        if state.nav == Nav::SavedTracks && state.library.saved_tracks.state() == psst_gui::data::PromiseState::Empty {
+            state.with_library_mut(|lib| lib.saved_tracks.defer_default());
+            let sender = state.event_sender.clone();
+            std::thread::spawn(move || {
+                let res = psst_gui::webapi::WebApi::global().get_saved_tracks().map(psst_gui::data::SavedTracks::new);
+                let _ = sender.send(psst_gui::data::AppEvent::SavedTracksLoaded(res));
+            });
+        }
+        if state.nav == Nav::SavedAlbums && state.library.saved_albums.state() == psst_gui::data::PromiseState::Empty {
+            state.with_library_mut(|lib| lib.saved_albums.defer_default());
+            let sender = state.event_sender.clone();
+            std::thread::spawn(move || {
+                let res = psst_gui::webapi::WebApi::global().get_saved_albums().map(psst_gui::data::SavedAlbums::new);
+                let _ = sender.send(psst_gui::data::AppEvent::SavedAlbumsLoaded(res));
+            });
+        }
+    }
+    
     let root_layout = if !state.config.has_credentials() {
         psst_gui::ui::login::login_view(state).boxed()
     } else {
@@ -103,7 +122,7 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
     flex_row((
         sidebar(),
         flex_col((
-            main_content,
+            main_content.flex(1.0),
             playback_bar(state),
         )),
     )).boxed()
@@ -198,6 +217,17 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
                             }
                             psst_gui::data::AppEvent::RecommendedStationsLoaded(res) => {
                                 state.home_detail.recommended_stations.resolve_or_reject((), res);
+                            }
+                            psst_gui::data::AppEvent::SavedTracksLoaded(res) => {
+                                state.with_library_mut(|lib| lib.saved_tracks.resolve_or_reject((), res));
+                            }
+                            psst_gui::data::AppEvent::SavedAlbumsLoaded(res) => {
+                                state.with_library_mut(|lib| lib.saved_albums.resolve_or_reject((), res));
+                            }
+                            psst_gui::data::AppEvent::ImageLoaded(_) => {
+                                // No-op for state, modifying anything triggers re-render, 
+                                // wait, just evaluating event triggers Xilem rebuild anyway.
+                                // If needed: state.config = state.config.clone();
                             }
                             psst_gui::data::AppEvent::SubmitLogin => {
                                 let auth = state.preferences.auth.clone();
