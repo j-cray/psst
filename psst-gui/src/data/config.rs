@@ -8,7 +8,17 @@ use std::{
 #[cfg(target_family = "unix")]
 use std::os::unix::fs::OpenOptionsExt;
 
-use druid::{Data, Lens, Size};
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct Size {
+    pub width: f64,
+    pub height: f64,
+}
+
+impl Size {
+    pub fn new(width: f64, height: f64) -> Self {
+        Self { width, height }
+    }
+}
 use platform_dirs::AppDirs;
 use psst_core::{
     cache::{mkdir_if_not_exists, CacheHandle},
@@ -18,13 +28,12 @@ use psst_core::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::{Nav, Promise, QueueBehavior, SliderScrollScale};
-use crate::ui::theme;
+use super::{Nav, Promise, playback::QueueBehavior, SliderScrollScale};
 
-#[derive(Clone, Debug, Data, Lens)]
+#[derive(Clone, Debug)]
 pub struct Preferences {
     pub active: PreferencesTab,
-    #[data(ignore)]
+    pub theme: Theme,
     pub cache: Option<CacheHandle>,
     pub cache_size: Promise<u64, (), ()>,
     pub auth: Authentication,
@@ -44,7 +53,7 @@ impl Preferences {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Data)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PreferencesTab {
     General,
     Account,
@@ -52,15 +61,14 @@ pub enum PreferencesTab {
     About,
 }
 
-#[derive(Clone, Debug, Data, Lens)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Authentication {
     pub username: String,
     pub password: String,
     pub access_token: String,
+    #[serde(skip)]
     pub result: Promise<(), (), String>,
-    #[data(ignore)]
     pub lastfm_api_key_input: String,
-    #[data(ignore)]
     pub lastfm_api_secret_input: String,
 }
 
@@ -104,15 +112,16 @@ impl Authentication {
 const APP_NAME: &str = "Psst";
 const CONFIG_FILENAME: &str = "config.json";
 const PROXY_ENV_VAR: &str = "SOCKS_PROXY";
+const DEFAULT_GRID_UNIT: f64 = 8.0;
 
-#[derive(Clone, Debug, Data, Lens, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
-    #[data(ignore)]
     credentials: Option<Credentials>,
     pub audio_quality: AudioQuality,
     pub theme: Theme,
     pub volume: f64,
+    #[serde(skip)]
     pub last_route: Option<Nav>,
     pub queue_behavior: QueueBehavior,
     pub show_track_cover: bool,
@@ -138,7 +147,7 @@ impl Default for Config {
             last_route: Default::default(),
             queue_behavior: Default::default(),
             show_track_cover: Default::default(),
-            window_size: Size::new(theme::grid(80.0), theme::grid(100.0)),
+            window_size: Size::new(80.0 * DEFAULT_GRID_UNIT, 100.0 * DEFAULT_GRID_UNIT),
             slider_scroll_scale: Default::default(),
             sort_order: Default::default(),
             sort_criteria: Default::default(),
@@ -179,31 +188,50 @@ impl Config {
     }
 
     pub fn load() -> Option<Config> {
-        let path = Self::config_path().expect("Failed to get config path");
+        let path = Self::config_path()?;
         if let Ok(file) = File::open(&path) {
             log::info!("loading config: {:?}", &path);
             let reader = BufReader::new(file);
-            Some(serde_json::from_reader(reader).expect("Failed to read config"))
+            match serde_json::from_reader(reader) {
+                Ok(config) => Some(config),
+                Err(err) => {
+                    log::error!("failed to parse config from {:?}: {}", &path, err);
+                    None
+                }
+            }
         } else {
             None
         }
     }
 
-    pub fn save(&self) {
-        let dir = Self::config_dir().expect("Failed to get config dir");
-        let path = Self::config_path().expect("Failed to get config path");
-        mkdir_if_not_exists(&dir).expect("Failed to create config dir");
+    pub fn save(&self) -> Result<(), std::io::Error> {
+        let dir = Self::config_dir().ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "Failed to get config dir"))?;
+        let path = Self::config_path().ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "Failed to get config path"))?;
+        if let Err(err) = mkdir_if_not_exists(&dir) {
+            log::error!("Failed to create config dir: {}", err);
+            return Err(err);
+        }
 
         let mut options = OpenOptions::new();
         options.write(true).create(true).truncate(true);
         #[cfg(target_family = "unix")]
         options.mode(0o600);
 
-        let file = options.open(&path).expect("Failed to create config");
+        let file = match options.open(&path) {
+            Ok(file) => file,
+            Err(err) => {
+                log::error!("Failed to create config file: {}", err);
+                return Err(err);
+            }
+        };
         let writer = BufWriter::new(file);
 
-        serde_json::to_writer_pretty(writer, self).expect("Failed to write config");
+        if let Err(err) = serde_json::to_writer_pretty(writer, self) {
+            log::error!("Failed to write config: {}", err);
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, err));
+        }
         log::info!("saved config: {:?}", &path);
+        Ok(())
     }
 
     pub fn has_credentials(&self) -> bool {
@@ -224,11 +252,11 @@ impl Config {
             .and_then(|c| c.username.as_deref())
     }
 
-    pub fn session(&self) -> SessionConfig {
-        SessionConfig {
-            login_creds: self.credentials.clone().expect("Missing credentials"),
+    pub fn session(&self) -> Option<SessionConfig> {
+        self.credentials.as_ref().map(|creds| SessionConfig {
+            login_creds: creds.clone(),
             proxy_url: Config::proxy(),
-        }
+        })
     }
 
     pub fn playback(&self) -> PlaybackConfig {
@@ -252,7 +280,7 @@ impl Config {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Data, Serialize, Deserialize, Default)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub enum AudioQuality {
     Low,
     Normal,
@@ -270,21 +298,21 @@ impl AudioQuality {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Data, Serialize, Deserialize, Default)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub enum Theme {
     #[default]
     Light,
     Dark,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Data, Serialize, Deserialize, Default)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub enum SortOrder {
     #[default]
     Ascending,
     Descending,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Data, Serialize, Deserialize, Default)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub enum SortCriteria {
     Title,
     Artist,

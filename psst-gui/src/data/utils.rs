@@ -5,20 +5,18 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use druid::{im::Vector, Data, Lens};
 use sanitize_html::rules::predefined::DEFAULT;
 use sanitize_html::sanitize_str;
 use serde::{Deserialize, Deserializer, Serialize};
 use time::{Date, Month};
 
-#[derive(Clone, Data, Lens)]
-pub struct Cached<T: Data> {
+#[derive(Clone)]
+pub struct Cached<T> {
     pub data: T,
-    #[data(ignore)]
     pub cached_at: Option<SystemTime>,
 }
 
-impl<T: Data> Cached<T> {
+impl<T> Cached<T> {
     pub fn new(data: T, at: SystemTime) -> Self {
         Self {
             data,
@@ -33,7 +31,7 @@ impl<T: Data> Cached<T> {
         }
     }
 
-    pub fn map<U: Data>(self, f: impl Fn(T) -> U) -> Cached<U> {
+    pub fn map<U>(self, f: impl Fn(T) -> U) -> Cached<U> {
         Cached {
             data: f(self.data),
             cached_at: self.cached_at,
@@ -43,13 +41,13 @@ impl<T: Data> Cached<T> {
 
 #[derive(Deserialize)]
 pub struct Page<T: Clone> {
-    pub items: Vector<T>,
+    pub items: Vec<T>,
     pub limit: usize,
     pub offset: usize,
     pub total: usize,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash, Data, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq, Hash)]
 pub struct Image {
     pub url: Arc<str>,
     pub width: Option<usize>,
@@ -65,12 +63,12 @@ impl Image {
         }
     }
 
-    pub fn at_least_of_size(images: &Vector<Self>, width: f64, height: f64) -> Option<&Self> {
+    pub fn at_least_of_size(images: &Vec<Self>, width: f64, height: f64) -> Option<&Self> {
         images
             .iter()
             .rev()
             .find(|img| !img.fits(width, height))
-            .or_else(|| images.back())
+            .or_else(|| images.last())
     }
 }
 
@@ -78,7 +76,7 @@ pub fn default_str() -> Arc<str> {
     "".into()
 }
 
-#[derive(Copy, Clone, Default, Debug, Data, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Deserialize)]
 pub struct Float64(pub f64);
 
 impl PartialEq for Float64 {
@@ -158,7 +156,7 @@ where
     Ok(Option::deserialize(deserializer)?.map(|Wrapper(val)| val))
 }
 
-pub fn deserialize_first_page<'de, D, T>(deserializer: D) -> Result<Vector<T>, D::Error>
+pub fn deserialize_first_page<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
 where
     T: Clone,
     T: Deserialize<'de>,

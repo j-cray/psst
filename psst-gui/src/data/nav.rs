@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use druid::Data;
-use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::data::track::TrackId;
@@ -9,7 +7,7 @@ use crate::data::{AlbumLink, ArtistLink, PlaylistLink, ShowLink};
 
 use super::RecommendationsRequest;
 
-#[derive(Copy, Clone, Debug, Data, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Route {
     Home,
     Lyrics,
@@ -22,9 +20,10 @@ pub enum Route {
     ShowDetail,
     PlaylistDetail,
     Recommendations,
+    Preferences,
 }
 
-#[derive(Clone, Debug, Data, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub enum Nav {
     #[default]
     Home,
@@ -38,6 +37,7 @@ pub enum Nav {
     PlaylistDetail(PlaylistLink),
     ShowDetail(ShowLink),
     Recommendations(Arc<RecommendationsRequest>),
+    Preferences,
 }
 
 impl Nav {
@@ -54,6 +54,7 @@ impl Nav {
             Nav::PlaylistDetail(_) => Route::PlaylistDetail,
             Nav::ShowDetail(_) => Route::ShowDetail,
             Nav::Recommendations(_) => Route::Recommendations,
+            Nav::Preferences => Route::Preferences,
         }
     }
 
@@ -70,6 +71,7 @@ impl Nav {
             Nav::PlaylistDetail(link) => link.name.to_string(),
             Nav::ShowDetail(link) => link.name.to_string(),
             Nav::Recommendations(_) => "Recommended".to_string(),
+            Nav::Preferences => "Preferences".to_string(),
         }
     }
 
@@ -86,11 +88,12 @@ impl Nav {
             Nav::PlaylistDetail(link) => format!("Playlist \"{}\"", link.name),
             Nav::ShowDetail(link) => format!("Show \"{}\"", link.name),
             Nav::Recommendations(_) => "Recommended".to_string(),
+            Nav::Preferences => "Preferences".to_string(),
         }
     }
 }
 
-#[derive(Clone, Debug, Data, Eq, PartialEq, Hash)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum SpotifyUrl {
     Playlist(Arc<str>),
     Artist(Arc<str>),

@@ -1,5 +1,4 @@
 use std::{
-    collections::hash_map::DefaultHasher,
     fs::{self, File},
     hash::{Hash, Hasher},
     num::NonZeroUsize,
@@ -7,15 +6,15 @@ use std::{
     sync::Arc,
 };
 
-use druid::image;
-use druid::ImageBuf;
+use image::DynamicImage as ImageBuf;
 use lru::LruCache;
 use parking_lot::Mutex;
 use psst_core::cache::mkdir_if_not_exists;
+use rustc_hash::FxHasher;
 
 pub struct WebApiCache {
     base: Option<PathBuf>,
-    images: Mutex<LruCache<Arc<str>, ImageBuf>>,
+    images: Mutex<LruCache<Arc<str>, Arc<ImageBuf>>>,
 }
 
 impl WebApiCache {
@@ -27,20 +26,20 @@ impl WebApiCache {
         }
     }
 
-    pub fn get_image(&self, uri: &Arc<str>) -> Option<ImageBuf> {
+    pub fn get_image(&self, uri: &Arc<str>) -> Option<Arc<ImageBuf>> {
         self.images.lock().get(uri).cloned()
     }
 
-    pub fn set_image(&self, uri: Arc<str>, image: ImageBuf) {
+    pub fn set_image(&self, uri: Arc<str>, image: Arc<ImageBuf>) {
         self.images.lock().put(uri, image);
     }
 
-    pub fn get_image_from_disk(&self, uri: &Arc<str>) -> Option<ImageBuf> {
+    pub fn get_image_from_disk(&self, uri: &Arc<str>) -> Option<Arc<ImageBuf>> {
         let hash = Self::hash_uri(uri);
         self.key("images", &format!("{hash:016x}"))
             .and_then(|path| std::fs::read(path).ok())
             .and_then(|bytes| image::load_from_memory(&bytes).ok())
-            .map(ImageBuf::from_dynamic_image)
+            .map(Arc::new)
     }
 
     pub fn save_image_to_disk(&self, uri: &Arc<str>, data: &[u8]) {
@@ -54,7 +53,7 @@ impl WebApiCache {
     }
 
     fn hash_uri(uri: &str) -> u64 {
-        let mut hasher = DefaultHasher::new();
+        let mut hasher = FxHasher::default();
         uri.hash(&mut hasher);
         hasher.finish()
     }

@@ -9,7 +9,6 @@ use std::{
     vec::Vec,
 };
 
-use druid::im::Vector;
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -206,7 +205,7 @@ struct LocalAlbumLinkJson {
     pub id: Option<Arc<str>>,
     pub name: Arc<str>,
     #[serde(default)]
-    pub images: Vector<Image>,
+    pub images: Vec<Image>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -221,7 +220,7 @@ struct LocalTrackJson {
     pub name: Arc<str>,
     #[serde(default)]
     pub album: Option<LocalAlbumLinkJson>,
-    pub artists: Vector<LocalArtistLinkJson>,
+    pub artists: Vec<LocalArtistLinkJson>,
     #[serde(rename = "duration_ms")]
     #[serde(deserialize_with = "crate::data::utils::deserialize_millis")]
     pub duration: Duration,
