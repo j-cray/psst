@@ -202,9 +202,7 @@ fn main() {
     let config = Config::load().unwrap_or_default();
     let mut state = AppState::default_with_config(config.clone());
 
-    // TODO: Add an authentication flow / session controller interface.
-    // The current Xilem implementation is missing a login/auth UI, so if
-    // no cached credentials exist, network requests will fail silently.
+
     let webapi = psst_gui::webapi::WebApi::new(
         state.session.clone(),
         Config::proxy().as_deref(),
