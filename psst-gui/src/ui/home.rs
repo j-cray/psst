@@ -1,5 +1,5 @@
 use xilem::{
-    view::{button, flex_col, flex_row, label, FlexSpacer},
+    view::label,
     WidgetView,
 };
 use xilem::core::Edit;

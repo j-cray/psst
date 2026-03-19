@@ -1,5 +1,4 @@
 use std::{
-    collections::hash_map::DefaultHasher,
     fs::{self, File},
     hash::{Hash, Hasher},
     num::NonZeroUsize,
@@ -52,7 +51,7 @@ impl WebApiCache {
     }
 
     fn hash_uri(uri: &str) -> u64 {
-        let mut hasher = DefaultHasher::new();
+        let mut hasher = FxHasher::new();
         uri.hash(&mut hasher);
         hasher.finish()
     }
@@ -80,5 +79,28 @@ impl WebApiCache {
 
     fn key(&self, bucket: &str, key: &str) -> Option<PathBuf> {
         self.bucket(bucket).map(|path| path.join(key))
+    }
+}
+
+struct FxHasher(u64);
+
+impl FxHasher {
+    fn new() -> Self {
+        Self(0)
+    }
+}
+
+impl Hasher for FxHasher {
+    #[inline]
+    fn finish(&self) -> u64 {
+        self.0
+    }
+
+    #[inline]
+    fn write(&mut self, bytes: &[u8]) {
+        for &byte in bytes {
+            self.0 = self.0.rotate_left(5) ^ (byte as u64);
+            self.0 = self.0.wrapping_mul(0x517cc1b727220a95);
+        }
     }
 }

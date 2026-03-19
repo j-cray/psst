@@ -1,4 +1,4 @@
-use psst_gui::ui::xilem_theme::AppTheme;
+use psst_gui::ui::theme::AppTheme;
 use xilem::masonry::dpi::LogicalSize;
 use xilem::{
     core::Edit,
@@ -50,10 +50,10 @@ fn sidebar(_state: &MyState) -> impl WidgetView<AppEdit> {
     ))
 }
 
-fn playback_panel(state: &MyState) -> impl WidgetView<AppEdit> {
+fn playback_panel(_state: &MyState) -> impl WidgetView<AppEdit> {
     flex_row::<AppEdit, _, _>((
         label("Playback Controls"),
-        button::<AppEdit, _, _, _>(label("Play/Pause"), |state| {
+        button::<AppEdit, _, _, _>(label("Play/Pause"), |_state| {
             println!("Toggle playback");
         }),
     ))

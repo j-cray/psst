@@ -12,7 +12,7 @@ pub fn sidebar() -> impl WidgetView<Edit<AppState>> {
         
         // Some filler navigation buttons
         button(label("Home"), |state: &mut AppState| state.nav = Nav::Home),
-        button(label("Search"), |state: &mut AppState| state.nav = Nav::SearchResults("".into())),
+        button(label("Search"), |_state: &mut AppState| {}),
         button(label("Library"), |state: &mut AppState| state.nav = Nav::SavedTracks),
     ))
 }
