@@ -39,7 +39,7 @@ infer = "0.19.0"
 image = { version = "0.24.8", features = ["jpeg", "png", "webp"] }
 
 # GUI
-xilem = { git = "https://github.com/linebender/xilem.git" }
+xilem = { git = "https://github.com/linebender/xilem.git", rev = "5071afc8be71098f0a094d7d21b0a44d5442eee0" }
 open = { version = "5.3.2" }
 souvlaki = { version = "0.8.2", default-features = false, features = [
   "use_zbus",
