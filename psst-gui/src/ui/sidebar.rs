@@ -10,9 +10,11 @@ pub fn sidebar() -> impl WidgetView<Edit<AppState>> {
         // Top logo
         crate::widget::icons::LOGO.view(xilem::Color::WHITE, 32.0),
         
-        // Some filler navigation buttons
-        button(label("Home"), |state: &mut AppState| state.nav = Nav::Home),
-        button(label("Search"), |_state: &mut AppState| {}),
-        button(label("Library"), |state: &mut AppState| state.nav = Nav::SavedTracks),
+        // Navigation buttons
+        button(label("Home"), |state: &mut AppState| state.navigate(&Nav::Home)),
+        button(label("Search"), |_state: &mut AppState| {}), // Needs special handling for focus
+        button(label("Saved Tracks"), |state: &mut AppState| state.navigate(&Nav::SavedTracks)),
+        button(label("Saved Albums"), |state: &mut AppState| state.navigate(&Nav::SavedAlbums)),
+        button(label("Podcasts"), |state: &mut AppState| state.navigate(&Nav::Shows)),
     ))
 }

@@ -5,7 +5,8 @@ use xilem::core::Edit;
 use psst_gui::data::{AppState, Config, nav::Nav};
 
 use psst_gui::ui::{
-    home::home_view, playback::playback_bar, sidebar::sidebar,
+    home::home_view, playback::playback_bar, sidebar::sidebar, search::search_view,
+    library::library_view, playlist::playlist_detail_view,
 };
 
 fn topbar(state: &AppState) -> impl WidgetView<Edit<AppState>> {
@@ -19,7 +20,10 @@ fn topbar(state: &AppState) -> impl WidgetView<Edit<AppState>> {
 
 fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
     let content = match state.nav {
-        Nav::Home => home_view().boxed(),
+        Nav::Home => home_view(state).boxed(),
+        Nav::SearchResults(_) => search_view(state).boxed(),
+        Nav::SavedTracks | Nav::SavedAlbums | Nav::Shows => library_view(state).boxed(),
+        Nav::PlaylistDetail(_) => playlist_detail_view(state).boxed(),
         _ => label("Unimplemented Route").boxed(),
     };
 
@@ -33,7 +37,7 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
             sidebar(),
             flex_col((
                 main_content,
-                playback_bar(),
+                playback_bar(state),
             )),
         )),
         xilem::view::task_raw(
