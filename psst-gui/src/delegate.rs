@@ -1,5 +1,6 @@
 use directories::UserDirs;
 use std::fs;
+use std::thread;
 use crate::data::AppState;
 
 pub struct Delegate;
@@ -18,7 +19,7 @@ impl Delegate {
         let _ = open::that(url);
     }
 
-    pub fn download_artwork(state: &mut AppState, url: String, title: String) {
+    pub fn download_artwork(_state: &mut AppState, url: String, title: String) {
         let safe_title = title.replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], "_");
         let file_name = format!("{safe_title} cover.jpg");
 
@@ -26,20 +27,22 @@ impl Delegate {
             if let Some(download_dir) = user_dirs.download_dir() {
                 let path = download_dir.join(file_name);
 
-                // In a real Xilem app, this should be spawned as an async task
-                // so it doesn't block the UI thread. Doing it synchronously here
-                // as a direct port of the old delegate logic for now.
-                match ureq::get(&url)
-                    .call()
-                    .and_then(|response| -> Result<(), ureq::Error> {
-                        let mut file = fs::File::create(&path)?;
-                        let mut reader = response.into_body().into_reader();
-                        std::io::copy(&mut reader, &mut file)?;
-                        Ok(())
-                    }) {
-                    Ok(_) => state.info_alert("Cover saved to Downloads folder."),
-                    Err(_) => state.error_alert("Failed to download and save artwork"),
-                }
+                // Spawn a background thread so the download doesn't block the UI thread.
+                // TODO: wire the result back to AppState via a Xilem event channel once
+                // the event-loop integration is in place.
+                thread::spawn(move || {
+                    match ureq::get(&url)
+                        .call()
+                        .and_then(|response| -> Result<(), ureq::Error> {
+                            let mut file = fs::File::create(&path)?;
+                            let mut reader = response.into_body().into_reader();
+                            std::io::copy(&mut reader, &mut file)?;
+                            Ok(())
+                        }) {
+                        Ok(_) => log::info!("Cover art saved to Downloads folder."),
+                        Err(e) => log::error!("Failed to download artwork: {e}"),
+                    }
+                });
             }
         }
     }

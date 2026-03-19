@@ -47,5 +47,5 @@ fn main() {
         
     let app = Xilem::new_simple(state, app_logic, window_options);
     
-    let _ = app.run_in(EventLoop::with_user_event());
+    app.run_in(EventLoop::with_user_event()).expect("Failed to run Psst application");
 }
