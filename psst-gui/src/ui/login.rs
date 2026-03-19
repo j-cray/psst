@@ -32,6 +32,14 @@ pub fn login_view(state: &AppState) -> impl WidgetView<Edit<AppState>> {
         }
     );
     
+    let oauth_button = button(
+        label("Log In with Spotify Browser"),
+        |state: &mut AppState| {
+            state.preferences.auth.result = Promise::Deferred { def: () };
+            let _ = state.event_sender.send(AppEvent::SubmitOAuthLogin(12345));
+        }
+    );
+    
     let status_label = match &auth.result {
         Promise::Empty => label(""),
         Promise::Deferred { .. } => label("Authenticating..."),
@@ -44,6 +52,8 @@ pub fn login_view(state: &AppState) -> impl WidgetView<Edit<AppState>> {
         flex_row((label("Username: "), username_input)),
         flex_row((label("Password: "), password_input)),
         login_button,
+        label("— OR —"),
+        oauth_button,
         status_label,
     ))
 }

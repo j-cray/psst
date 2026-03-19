@@ -109,6 +109,7 @@ pub enum AppEvent {
     RecommendedStationsLoaded(Result<crate::data::MixedView, crate::error::Error>),
     SearchResultsLoaded(Result<crate::data::SearchResults, crate::error::Error>),
     SubmitLogin,
+    SubmitOAuthLogin(u16),
     LoginResult(Result<psst_core::connection::Credentials, String>),
 }
 

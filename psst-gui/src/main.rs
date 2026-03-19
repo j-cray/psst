@@ -208,6 +208,31 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
                                     let _ = sender.send(psst_gui::data::AppEvent::LoginResult(res));
                                 });
                             }
+                            psst_gui::data::AppEvent::SubmitOAuthLogin(port) => {
+                                let sender = state.event_sender.clone();
+                                std::thread::spawn(move || {
+                                    let (auth_url, pkce_verifier) = psst_core::oauth::generate_auth_url(port);
+                                    if let Err(e) = open::that(&auth_url) {
+                                        let _ = sender.send(psst_gui::data::AppEvent::LoginResult(Err(format!("Failed to open browser: {}", e))));
+                                        return;
+                                    }
+                                    let bind_addr = std::net::SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)), port);
+                                    let code = match psst_core::oauth::get_authcode_listener(bind_addr, std::time::Duration::from_secs(300)) {
+                                        Ok(c) => c,
+                                        Err(e) => {
+                                            let _ = sender.send(psst_gui::data::AppEvent::LoginResult(Err(format!("OAuth failed or timed out: {:?}", e))));
+                                            return;
+                                        }
+                                    };
+                                    let token = psst_core::oauth::exchange_code_for_token(port, code, pkce_verifier);
+                                    let config = psst_core::session::SessionConfig {
+                                        login_creds: psst_core::connection::Credentials::from_access_token(token),
+                                        proxy_url: psst_gui::data::Config::proxy()
+                                    };
+                                    let res = psst_gui::data::config::Authentication::authenticate_and_get_credentials(config);
+                                    let _ = sender.send(psst_gui::data::AppEvent::LoginResult(res));
+                                });
+                            }
                             psst_gui::data::AppEvent::LoginResult(res) => {
                                 state.preferences.auth.result.resolve_or_reject((), res.clone().map(|_| ()));
                                 match res {
