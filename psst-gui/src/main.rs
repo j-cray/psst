@@ -111,6 +111,9 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
                             psst_gui::data::AppEvent::PlaybackStateChanged => {
                                 // To be implemented when playback controls are wired up 
                             }
+                            // TODO: Sending playback commands through the AppEvent channel is architecturally
+                            // backwards. When the audio backend is wired up, CommandXxx events should go to
+                            // a separate `player_sender` channel, not looped back into the UI receiver.
                             psst_gui::data::AppEvent::CommandPlay(item) => {
                                 log::info!("Backend received Play command for: {}", item.name());
                                 state.info_alert(format!("Playing: {}", item.name()));

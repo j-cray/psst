@@ -9,6 +9,7 @@ fn render_mixed_view(title: &str, promise: &Promise<MixedView>) -> impl WidgetVi
     let content = match promise {
         Promise::Empty => label("..."),
         Promise::Deferred { .. } => label("Loading..."),
+        // TODO: This is temporary debug output for scaffolding. Should be replaced with real UI.
         Promise::Resolved { val, .. } => label(format!("Loaded {} items", val.playlists.len() + val.albums.len() + val.artists.len() + val.shows.len())),
         Promise::Rejected { .. } => label("Failed to load"),
     };
