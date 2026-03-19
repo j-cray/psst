@@ -1440,11 +1440,11 @@ impl WebApi {
 
 /// Image endpoints.
 impl WebApi {
-    pub fn get_cached_image(&self, uri: &Arc<str>) -> Option<ImageBuf> {
+    pub fn get_cached_image(&self, uri: &Arc<str>) -> Option<Arc<ImageBuf>> {
         self.cache.get_image(uri)
     }
 
-    pub fn get_image(&self, uri: Arc<str>) -> Result<ImageBuf, Error> {
+    pub fn get_image(&self, uri: Arc<str>) -> Result<Arc<ImageBuf>, Error> {
         if let Some(cached_image) = self.cache.get_image(&uri) {
             return Ok(cached_image);
         }
@@ -1490,7 +1490,7 @@ impl WebApi {
         } else {
             image::load_from_memory(&body)?
         };
-        let image_buf = image;
+        let image_buf = Arc::new(image);
         self.cache.set_image(uri, image_buf.clone());
         Ok(image_buf)
     }
