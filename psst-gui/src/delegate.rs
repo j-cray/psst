@@ -54,7 +54,17 @@ impl Delegate {
                         result,
                     });
                 });
+            } else {
+                let _ = _state.event_sender.send(crate::data::AppEvent::ArtworkDownloaded {
+                    path: std::path::PathBuf::new(),
+                    result: Err("Download directory not found".to_string()),
+                });
             }
+        } else {
+            let _ = _state.event_sender.send(crate::data::AppEvent::ArtworkDownloaded {
+                path: std::path::PathBuf::new(),
+                result: Err("User directories not found".to_string()),
+            });
         }
     }
 }

@@ -52,6 +52,10 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
                 let _ = sender.send(psst_gui::data::AppEvent::RecommendedStationsLoaded(res));
             });
         }
+        
+        // TODO: The following HomeDetail fields are declared but not currently fetched:
+        // your_shows, shows_that_you_might_like, uniquely_yours, jump_back_in, user_top_tracks, user_top_artists.
+        // They remain permanently empty. We should add fetch logic and AppEvent variants for them.
     }
     let content = match state.nav {
         Nav::Home => home_view(state).boxed(),
@@ -79,7 +83,7 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
             |()| {
                 xilem::view::task_raw(
                     |proxy, state: &mut AppState| {
-                        let receiver = state.event_receiver.clone();
+                        let receiver = state.take_event_receiver().expect("event_receiver already taken");
                         async move {
                             let _ = xilem::tokio::task::spawn_blocking(move || {
                                 while let Ok(event) = receiver.recv() {
@@ -148,6 +152,9 @@ fn main() {
     let config = Config::load().unwrap_or_default();
     let state = AppState::default_with_config(config.clone());
 
+    // TODO: Add an authentication flow / session controller interface.
+    // The current Xilem implementation is missing a login/auth UI, so if
+    // no cached credentials exist, network requests will fail silently.
     let webapi = psst_gui::webapi::WebApi::new(
         state.session.clone(),
         Config::proxy().as_deref(),

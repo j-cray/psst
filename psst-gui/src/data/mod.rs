@@ -89,7 +89,7 @@ pub struct AppState {
     pub theme: AppTheme,
     pub shutdown: bool,
     pub event_sender: crossbeam_channel::Sender<AppEvent>,
-    pub event_receiver: crossbeam_channel::Receiver<AppEvent>,
+    event_receiver: Option<crossbeam_channel::Receiver<AppEvent>>,
 }
 
 #[derive(Clone, Debug)]
@@ -198,8 +198,12 @@ impl AppState {
             lyrics: Promise::Empty,
             shutdown: false,
             event_sender,
-            event_receiver,
+            event_receiver: Some(event_receiver),
         }
+    }
+
+    pub fn take_event_receiver(&mut self) -> Option<crossbeam_channel::Receiver<AppEvent>> {
+        self.event_receiver.take()
     }
 }
 

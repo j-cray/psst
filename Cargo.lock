@@ -4711,6 +4711,7 @@ dependencies = [
  "psst-core",
  "rand 0.9.1",
  "regex",
+ "rustc-hash 2.1.1",
  "rustfm-scrobble",
  "sanitize_html",
  "serde",
