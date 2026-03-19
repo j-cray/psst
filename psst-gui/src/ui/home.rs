@@ -3,8 +3,11 @@ use xilem::{
     WidgetView,
 };
 use xilem::core::Edit;
-use crate::data::{AppState, Promise, MixedView};
+use crate::data::{AppState, Promise, MixedView, nav::Nav, PlaylistLink, AlbumLink, ArtistLink, ShowLink};
 use crate::ui::utils::image_widget;
+use xilem::view::{button, sized_box};
+use xilem::style::Style;
+use xilem::masonry::layout::Length;
 
 fn render_mixed_view(state: &AppState, title: &str, promise: &Promise<MixedView>) -> impl WidgetView<Edit<AppState>> {
     let content = match promise {
@@ -13,32 +16,56 @@ fn render_mixed_view(state: &AppState, title: &str, promise: &Promise<MixedView>
         Promise::Resolved { val, .. } => {
             let mut row = Vec::new();
             for p in &val.playlists {
-                let img_url = p.image(300.0, 300.0).map(|img| img.url.clone());
-                row.push(flex_col((
-                    image_widget(state, img_url),
-                    label(format!("Playlist: {}", p.name)),
-                )).boxed());
+                let img_url = p.image(150.0, 150.0).map(|img| img.url.clone());
+                let link = PlaylistLink { id: p.id.clone(), name: p.name.clone() };
+                row.push(button(
+                    flex_col((
+                        sized_box(image_widget(state, img_url))
+                            .fixed_width(Length::px(150.0))
+                            .fixed_height(Length::px(150.0)),
+                        label(format!("Playlist: {}", p.name)),
+                    )),
+                    move |s: &mut AppState| s.navigate(&Nav::PlaylistDetail(link.clone()))
+                ).corner_radius(10.0).boxed());
             }
             for a in &val.albums {
-                let img_url = a.image(300.0, 300.0).map(|img| img.url.clone());
-                row.push(flex_col((
-                    image_widget(state, img_url),
-                    label(format!("Album: {}", a.name)),
-                )).boxed());
+                let img_url = a.image(150.0, 150.0).map(|img| img.url.clone());
+                let link = AlbumLink { id: a.id.clone(), name: a.name.clone(), images: a.images.clone() };
+                row.push(button(
+                    flex_col((
+                        sized_box(image_widget(state, img_url))
+                            .fixed_width(Length::px(150.0))
+                            .fixed_height(Length::px(150.0)),
+                        label(format!("Album: {}", a.name)),
+                    )),
+                    move |s: &mut AppState| s.navigate(&Nav::AlbumDetail(link.clone(), None))
+                ).corner_radius(10.0).boxed());
             }
             for art in &val.artists {
-                let img_url = art.image(300.0, 300.0).map(|img| img.url.clone());
-                row.push(flex_col((
-                    image_widget(state, img_url),
-                    label(format!("Artist: {}", art.name)),
-                )).boxed());
+                let img_url = art.image(150.0, 150.0).map(|img| img.url.clone());
+                let link = ArtistLink { id: art.id.clone(), name: art.name.clone() };
+                row.push(button(
+                    flex_col((
+                        sized_box(image_widget(state, img_url))
+                            .fixed_width(Length::px(150.0))
+                            .fixed_height(Length::px(150.0)),
+                        label(format!("Artist: {}", art.name)),
+                    )),
+                    move |s: &mut AppState| s.navigate(&Nav::ArtistDetail(link.clone()))
+                ).corner_radius(10.0).boxed());
             }
             for s in &val.shows {
-                let img_url = s.image(300.0, 300.0).map(|img| img.url.clone());
-                row.push(flex_col((
-                    image_widget(state, img_url),
-                    label(format!("Show: {}", s.name)),
-                )).boxed());
+                let img_url = s.image(150.0, 150.0).map(|img| img.url.clone());
+                let link = ShowLink { id: s.id.clone(), name: s.name.clone() };
+                row.push(button(
+                    flex_col((
+                        sized_box(image_widget(state, img_url))
+                            .fixed_width(Length::px(150.0))
+                            .fixed_height(Length::px(150.0)),
+                        label(format!("Show: {}", s.name)),
+                    )),
+                    move |state: &mut AppState| state.navigate(&Nav::ShowDetail(link.clone()))
+                ).corner_radius(10.0).boxed());
             }
             if row.is_empty() {
                 label("No items").boxed()

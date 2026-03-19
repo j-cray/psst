@@ -1,5 +1,5 @@
 use xilem::masonry::dpi::LogicalSize;
-use xilem::view::{flex_col, flex_row, label, FlexSpacer, FlexExt};
+use xilem::view::{flex_col, flex_row, label, portal, FlexSpacer, FlexExt};
 use xilem::{EventLoop, WindowOptions, Xilem, WidgetView};
 use xilem::core::Edit;
 use psst_gui::data::{AppState, Config, nav::Nav};
@@ -116,7 +116,7 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
 
     let main_content = flex_col((
         topbar(state),
-        content,
+        portal(content),
     ));
 
     flex_row((
