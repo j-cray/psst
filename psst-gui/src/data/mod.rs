@@ -90,7 +90,7 @@ pub struct AppState {
     pub shutdown: bool,
     pub event_sender: crossbeam_channel::Sender<AppEvent>,
     event_receiver: Option<crossbeam_channel::Receiver<AppEvent>>,
-    pub player_sender: crossbeam_channel::Sender<psst_core::player::PlayerEvent>,
+    pub player_sender: Option<crossbeam_channel::Sender<psst_core::player::PlayerEvent>>,
 }
 
 #[derive(Clone, Debug)]
@@ -202,7 +202,7 @@ impl AppState {
             shutdown: false,
             event_sender,
             event_receiver: Some(event_receiver),
-            player_sender: crossbeam_channel::unbounded().0, // Placeholder until initialized
+            player_sender: None,
         }
     }
 

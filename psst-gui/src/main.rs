@@ -19,7 +19,7 @@ fn topbar(state: &AppState) -> impl WidgetView<Edit<AppState>> {
 }
 
 fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
-    if state.nav == Nav::Home {
+    if state.config.has_credentials() && state.nav == Nav::Home {
         if state.home_detail.made_for_you.state() == psst_gui::data::PromiseState::Empty {
             state.home_detail.made_for_you.defer_default();
             let sender = state.event_sender.clone();
@@ -125,24 +125,32 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
                                     item_id: item.id(),
                                     norm_level: psst_core::audio::normalize::NormalizationLevel::Track,
                                 };
-                                let _ = state.player_sender.send(psst_core::player::PlayerEvent::Command(
-                                    psst_core::player::PlayerCommand::LoadAndPlay { item: playback_item }
-                                ));
+                                if let Some(sender) = &state.player_sender {
+                                    let _ = sender.send(psst_core::player::PlayerEvent::Command(
+                                        psst_core::player::PlayerCommand::LoadAndPlay { item: playback_item }
+                                    ));
+                                }
                             }
                             psst_gui::data::AppEvent::CommandPause => {
-                                let _ = state.player_sender.send(psst_core::player::PlayerEvent::Command(
-                                    psst_core::player::PlayerCommand::Pause
-                                ));
+                                if let Some(sender) = &state.player_sender {
+                                    let _ = sender.send(psst_core::player::PlayerEvent::Command(
+                                        psst_core::player::PlayerCommand::Pause
+                                    ));
+                                }
                             }
                             psst_gui::data::AppEvent::CommandResume => {
-                                let _ = state.player_sender.send(psst_core::player::PlayerEvent::Command(
-                                    psst_core::player::PlayerCommand::Resume
-                                ));
+                                if let Some(sender) = &state.player_sender {
+                                    let _ = sender.send(psst_core::player::PlayerEvent::Command(
+                                        psst_core::player::PlayerCommand::Resume
+                                    ));
+                                }
                             }
                             psst_gui::data::AppEvent::CommandStop => {
-                                let _ = state.player_sender.send(psst_core::player::PlayerEvent::Command(
-                                    psst_core::player::PlayerCommand::Stop
-                                ));
+                                if let Some(sender) = &state.player_sender {
+                                    let _ = sender.send(psst_core::player::PlayerEvent::Command(
+                                        psst_core::player::PlayerCommand::Stop
+                                    ));
+                                }
                             }
                             psst_gui::data::AppEvent::MadeForYouLoaded(res) => {
                                 state.home_detail.made_for_you.resolve_or_reject((), res);
@@ -234,7 +242,7 @@ fn main() {
     });
     
     // Inject the real player_sender
-    state.player_sender = player_sender;
+    state.player_sender = Some(player_sender);
 
     let window_options = WindowOptions::new("Psst Xilem")
         .with_min_inner_size(LogicalSize::new(800.0, 600.0))
