@@ -4698,7 +4698,6 @@ version = "0.1.0"
 dependencies = [
  "crossbeam-channel",
  "directories",
- "env_logger",
  "image 0.24.9",
  "image 0.25.9",
  "infer",
@@ -4720,6 +4719,8 @@ dependencies = [
  "threadpool",
  "time 0.3.47",
  "time-humanize",
+ "tracing",
+ "tracing-subscriber",
  "ureq 3.0.11",
  "url",
  "urlencoding",

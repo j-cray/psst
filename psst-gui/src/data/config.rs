@@ -190,12 +190,12 @@ impl Config {
     pub fn load() -> Option<Config> {
         let path = Self::config_path()?;
         if let Ok(file) = File::open(&path) {
-            log::info!("loading config: {:?}", &path);
+            tracing::info!("loading config: {:?}", &path);
             let reader = BufReader::new(file);
             match serde_json::from_reader(reader) {
                 Ok(config) => Some(config),
                 Err(err) => {
-                    log::error!("failed to parse config from {:?}: {}", &path, err);
+                    tracing::error!("failed to parse config from {:?}: {}", &path, err);
                     None
                 }
             }
@@ -208,7 +208,7 @@ impl Config {
         let dir = Self::config_dir().ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "Failed to get config dir"))?;
         let path = Self::config_path().ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "Failed to get config path"))?;
         if let Err(err) = mkdir_if_not_exists(&dir) {
-            log::error!("Failed to create config dir: {}", err);
+            tracing::error!("Failed to create config dir: {}", err);
             return Err(err);
         }
 
@@ -220,17 +220,17 @@ impl Config {
         let file = match options.open(&path) {
             Ok(file) => file,
             Err(err) => {
-                log::error!("Failed to create config file: {}", err);
+                tracing::error!("Failed to create config file: {}", err);
                 return Err(err);
             }
         };
         let writer = BufWriter::new(file);
 
         if let Err(err) = serde_json::to_writer_pretty(writer, self) {
-            log::error!("Failed to write config: {}", err);
+            tracing::error!("Failed to write config: {}", err);
             return Err(std::io::Error::new(std::io::ErrorKind::Other, err));
         }
-        log::info!("saved config: {:?}", &path);
+        tracing::info!("saved config: {:?}", &path);
         Ok(())
     }
 
@@ -271,7 +271,7 @@ impl Config {
             |err| match err {
                 VarError::NotPresent => None,
                 VarError::NotUnicode(_) => {
-                    log::error!("proxy URL is not a valid unicode");
+                    tracing::error!("proxy URL is not a valid unicode");
                     None
                 }
             },

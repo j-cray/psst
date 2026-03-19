@@ -145,7 +145,7 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
                                 // To be implemented when playback controls are wired up 
                             }
                             psst_gui::data::AppEvent::CommandPlay(item) => {
-                                log::info!("Backend received Play command for: {:?}", item.name());
+                                tracing::info!("Backend received Play command for: {:?}", item.name());
                                 let playback_item = psst_core::player::item::PlaybackItem {
                                     item_id: item.id(),
                                     norm_level: psst_core::audio::normalize::NormalizationLevel::Track,
@@ -259,11 +259,14 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
 }
 
 fn main() {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
-        .filter_module("xilem", log::LevelFilter::Warn)
-        .filter_module("xilem_core", log::LevelFilter::Warn)
-        .filter_module("masonry", log::LevelFilter::Warn)
-        .filter_module("winit", log::LevelFilter::Warn)
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env()
+            .add_directive(tracing::level_filters::LevelFilter::INFO.into())
+            .add_directive("xilem=warn".parse().unwrap())
+            .add_directive("xilem_core=warn".parse().unwrap())
+            .add_directive("masonry=warn".parse().unwrap())
+            .add_directive("winit=warn".parse().unwrap())
+        )
         .init();
 
     let config = Config::load().unwrap_or_default();

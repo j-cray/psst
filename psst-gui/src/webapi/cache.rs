@@ -65,12 +65,12 @@ impl WebApiCache {
     pub fn set(&self, bucket: &str, key: &str, value: &[u8]) {
         if let Some(path) = self.bucket(bucket) {
             if let Err(err) = mkdir_if_not_exists(&path) {
-                log::error!("failed to create WebAPI cache bucket: {err:?}");
+                tracing::error!("failed to create WebAPI cache bucket: {err:?}");
             }
         }
         if let Some(path) = self.key(bucket, key) {
             if let Err(err) = fs::write(path, value) {
-                log::error!("failed to save to WebAPI cache: {err:?}");
+                tracing::error!("failed to save to WebAPI cache: {err:?}");
             }
         }
     }

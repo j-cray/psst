@@ -19,7 +19,8 @@ psst-core = { path = "../psst-core" }
 # Common
 crossbeam-channel = { version = "0.5.15" }
 directories = "6.0.0"
-env_logger = { version = "0.11.8" }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 itertools = "0.14.0"
 log = { version = "0.4.27" }
 lru = "0.14.0"

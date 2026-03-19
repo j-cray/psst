@@ -47,7 +47,7 @@ impl Album {
 
     pub fn release_year_int(&self) -> usize {
         self.release_year().parse::<usize>().unwrap_or_else(|err| {
-            log::error!("error parsing release year for {}: {}", self.name, err);
+            tracing::error!("error parsing release year for {}: {}", self.name, err);
             usize::MAX
         })
     }

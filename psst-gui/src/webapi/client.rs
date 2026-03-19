@@ -11,7 +11,7 @@ use std::{
 use image::{self, DynamicImage as ImageBuf, ImageFormat};
 
 use itertools::Itertools;
-use log::info;
+use tracing::info;
 use parking_lot::Mutex;
 use psst_core::{
     session::{login5::Login5, SessionService},
@@ -300,7 +300,7 @@ impl WebApi {
             .lock()
             .load_tracks_for_user(username)
         {
-            log::error!("failed to read local tracks: {err}");
+            tracing::error!("failed to read local tracks: {err}");
         }
     }
 

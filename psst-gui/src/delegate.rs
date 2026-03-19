@@ -40,11 +40,11 @@ impl Delegate {
                             Ok(())
                         }) {
                         Ok(_) => {
-                            log::info!("Cover art saved to Downloads folder.");
+                            tracing::info!("Cover art saved to Downloads folder.");
                             Ok(())
                         }
                         Err(e) => {
-                            log::error!("Failed to download artwork: {e}");
+                            tracing::error!("Failed to download artwork: {e}");
                             Err(e.to_string())
                         }
                     };

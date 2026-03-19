@@ -88,7 +88,7 @@ impl LocalTrackManager {
         let local_file = File::open(&file_path)?;
         let mut reader = LocalTracksReader::new(local_file)?;
 
-        log::info!("parsing local tracks: {file_path:?}");
+        tracing::info!("parsing local tracks: {file_path:?}");
 
         // Start reading the track array.
         let num_tracks = reader.read_array()?;
@@ -115,7 +115,7 @@ impl LocalTrackManager {
                 .push(track);
             if reader.advance_until(&TRAILER_END).is_err() {
                 if n != num_tracks {
-                    log::warn!("found EOF but missing {} tracks", num_tracks - n);
+                    tracing::warn!("found EOF but missing {} tracks", num_tracks - n);
                 }
                 break;
             }
@@ -128,7 +128,7 @@ impl LocalTrackManager {
         let local_track: LocalTrackJson = match serde_json::from_value(track_json) {
             Ok(t) => t,
             Err(e) => {
-                log::error!("error parsing track {e:?}");
+                tracing::error!("error parsing track {e:?}");
                 return None;
             }
         };
@@ -138,7 +138,7 @@ impl LocalTrackManager {
         for parsed_track in matching_tracks {
             let path: PathBuf = (&*parsed_track.path).into();
             if !path.exists() {
-                log::error!("error loading local file: Path does not exist");
+                tracing::error!("error loading local file: Path does not exist");
                 continue;
             }
 
