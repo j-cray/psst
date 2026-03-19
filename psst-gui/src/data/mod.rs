@@ -95,12 +95,15 @@ pub struct AppState {
 #[derive(Clone, Debug)]
 pub enum AppEvent {
     ArtworkDownloaded { path: std::path::PathBuf, result: Result<(), String> },
-    // Future architectural wiring for background workers to notify AppState of
-    // Spotify session connectivity or playback changes.
     SessionConnected,
     SessionError(String),
     PlaybackStateChanged,
+    CommandPlay(crate::data::playback::Playable),
+    CommandPause,
+    CommandResume,
+    CommandStop,
 }
+
 
 impl AppState {
     pub fn default_with_config(config: Config) -> Self {

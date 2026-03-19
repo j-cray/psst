@@ -70,6 +70,23 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
                     psst_gui::data::AppEvent::PlaybackStateChanged => {
                         // To be implemented when playback controls are wired up 
                     }
+                    psst_gui::data::AppEvent::CommandPlay(item) => {
+                        log::info!("Backend received Play command for: {}", item.name());
+                        state.info_alert(format!("Playing: {}", item.name()));
+                        // player_sender.send(PlayerCommand::LoadAndPlay { item })
+                    }
+                    psst_gui::data::AppEvent::CommandPause => {
+                        log::info!("Backend received Pause command");
+                        state.info_alert("Playback paused".to_string());
+                    }
+                    psst_gui::data::AppEvent::CommandResume => {
+                        log::info!("Backend received Resume command");
+                        state.info_alert("Playback resumed".to_string());
+                    }
+                    psst_gui::data::AppEvent::CommandStop => {
+                        log::info!("Backend received Stop command");
+                        state.info_alert("Playback stopped".to_string());
+                    }
                 }
             }
         )

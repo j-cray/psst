@@ -21,12 +21,21 @@ pub fn playback_bar(state: &AppState) -> impl WidgetView<Edit<AppState>> {
         button(label(if is_playing { "Pause" } else { "Play" }), |s: &mut AppState| {
             if s.playback.state == PlaybackState::Playing {
                 s.pause_playback();
+                let _ = s.event_sender.send(crate::data::AppEvent::CommandPause);
             } else if s.playback.state == PlaybackState::Paused {
                 s.resume_playback();
+                let _ = s.event_sender.send(crate::data::AppEvent::CommandResume);
+            } else {
+                let item = s.playback.now_playing.as_ref().map(|np| np.item.clone());
+                if let Some(item) = item {
+                    s.resume_playback();
+                    let _ = s.event_sender.send(crate::data::AppEvent::CommandPlay(item));
+                }
             }
         }),
         button(label("Stop"), |s: &mut AppState| {
             s.stop_playback();
+            let _ = s.event_sender.send(crate::data::AppEvent::CommandStop);
         }),
     ))
 }
