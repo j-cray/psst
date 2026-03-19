@@ -52,7 +52,7 @@ pub use crate::data::{
         Range, Recommend, Recommendations, RecommendationsKnobs, RecommendationsParams,
         RecommendationsRequest, Toggled,
     },
-    search::{Search, SearchResults, SearchTopic},
+    search::{Search, SearchQuery, SearchResults, SearchTopic},
     show::{Episode, EpisodeId, EpisodeLink, Show, ShowDetail, ShowEpisodes, ShowLink},
     slider_scroll_scale::SliderScrollScale,
     track::{AudioAnalysis, Track, TrackId, TrackLines},
@@ -107,6 +107,7 @@ pub enum AppEvent {
     TopMixesLoaded(Result<crate::data::MixedView, crate::error::Error>),
     BestOfArtistsLoaded(Result<crate::data::MixedView, crate::error::Error>),
     RecommendedStationsLoaded(Result<crate::data::MixedView, crate::error::Error>),
+    SearchResultsLoaded(Result<crate::data::SearchResults, crate::error::Error>),
     SubmitLogin,
     LoginResult(Result<psst_core::connection::Credentials, String>),
 }

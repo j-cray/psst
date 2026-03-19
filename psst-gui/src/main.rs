@@ -61,6 +61,31 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
     let root_layout = if !state.config.has_credentials() {
         psst_gui::ui::login::login_view(state).boxed()
     } else {
+        if let Nav::SearchResults(ref query) = state.nav {
+            let search_query = psst_gui::data::SearchQuery {
+                input: query.clone().into(),
+                topic: state.search.topic,
+            };
+            let needs_fetch = match &state.search.results {
+                psst_gui::data::Promise::Empty => true,
+                psst_gui::data::Promise::Deferred { def } |
+                psst_gui::data::Promise::Resolved { def, .. } |
+                psst_gui::data::Promise::Rejected { def, .. } => def != &search_query,
+            };
+            if needs_fetch && !query.is_empty() {
+                state.search.results.defer(search_query.clone());
+                let sender = state.event_sender.clone();
+                let limit = state.config.paginated_limit;
+                std::thread::spawn(move || {
+                    let topics = search_query.topic
+                        .map(|t| vec![t])
+                        .unwrap_or_else(|| psst_gui::data::SearchTopic::all().to_vec());
+                    let res = psst_gui::webapi::WebApi::global().search(&search_query.input, &topics, limit);
+                    let _ = sender.send(psst_gui::data::AppEvent::SearchResultsLoaded(res));
+                });
+            }
+        }
+
         let content = match state.nav {
         Nav::Home => home_view(state).boxed(),
         Nav::SearchResults(_) => search_view(state).boxed(),
@@ -152,6 +177,16 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
                                     ));
                                 }
                             }
+                            psst_gui::data::AppEvent::SearchResultsLoaded(res) => {
+                                let query = if let psst_gui::data::Promise::Deferred { def } = &state.search.results {
+                                    Some(def.clone())
+                                } else {
+                                    None
+                                };
+                                if let Some(q) = query {
+                                    state.search.results.resolve_or_reject(q, res);
+                                }
+                            }
                             psst_gui::data::AppEvent::MadeForYouLoaded(res) => {
                                 state.home_detail.made_for_you.resolve_or_reject((), res);
                             }
@@ -182,10 +217,9 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
                                         state.info_alert("Logged in successfully".to_owned());
                                         // Update the webapi global session to ensure subsequent requests work
                                         if let Some(session_config) = state.config.session() {
-                                            let session = psst_core::session::SessionService::with_config(session_config);
-                                            state.session = session.clone();
+                                            state.session.update_config(session_config);
                                             let webapi = psst_gui::webapi::WebApi::new(
-                                                session,
+                                                state.session.clone(),
                                                 psst_gui::data::Config::proxy().as_deref(),
                                                 psst_gui::data::Config::cache_dir(),
                                                 state.config.paginated_limit,
@@ -233,11 +267,31 @@ fn main() {
     );
     let player_sender = player.sender();
     let player_receiver = player.receiver();
+    let player_loop_sender = state.event_sender.clone();
 
     std::thread::spawn(move || {
+        // The audio_output must be kept alive for the player to function. 
+        // This thread acts as the actor loop for the Player. In this design, 
+        // instead of the player yielding outbound events directly to the UI, 
+        // the player actor consumes its own internal state events and commands 
+        // through this receiver, processing them synchronously.
         let _audio_output = audio_output;
-        for event in player_receiver {
-            player.handle(event);
+        
+        let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            for event in player_receiver {
+                player.handle(event);
+            }
+        }));
+        
+        if let Err(err) = res {
+            let msg = if let Some(s) = err.downcast_ref::<&str>() {
+                (*s).to_string()
+            } else if let Some(s) = err.downcast_ref::<String>() {
+                s.clone()
+            } else {
+                "Unknown panic in player thread".to_string()
+            };
+            let _ = player_loop_sender.send(psst_gui::data::AppEvent::SessionError(format!("Player thread crashed: {}", msg)));
         }
     });
     

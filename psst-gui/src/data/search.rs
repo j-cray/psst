@@ -59,7 +59,7 @@ impl SearchTopic {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SearchResults {
     pub query: Arc<str>,
     pub topic: Option<SearchTopic>,
