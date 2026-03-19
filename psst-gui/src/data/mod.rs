@@ -87,6 +87,19 @@ pub struct AppState {
     pub added_queue: Vec<QueueEntry>,
     pub lyrics: Promise<Vec<TrackLines>>,
     pub theme: AppTheme,
+    pub shutdown: bool,
+    pub event_sender: crossbeam_channel::Sender<AppEvent>,
+    pub event_receiver: crossbeam_channel::Receiver<AppEvent>,
+}
+
+#[derive(Clone, Debug)]
+pub enum AppEvent {
+    ArtworkDownloaded { path: std::path::PathBuf, result: Result<(), String> },
+    // Future architectural wiring for background workers to notify AppState of
+    // Spotify session connectivity or playback changes.
+    SessionConnected,
+    SessionError(String),
+    PlaybackStateChanged,
 }
 
 impl AppState {
@@ -111,8 +124,13 @@ impl AppState {
             queue: Vec::new(),
             volume: Float64(config.volume).into(),
         };
+        let (event_sender, event_receiver) = crossbeam_channel::unbounded();
+        let session = match config.session() {
+            Some(sc) => SessionService::with_config(sc),
+            None => SessionService::empty(),
+        };
         Self {
-            session: SessionService::empty(),
+            session,
             nav: Nav::Home,
             history: Vec::new(),
             theme: AppTheme::new(config.theme),
@@ -171,13 +189,16 @@ impl AppState {
             alerts: Vec::new(),
             finder: Finder::new(),
             lyrics: Promise::Empty,
+            shutdown: false,
+            event_sender,
+            event_receiver,
         }
     }
 }
 
 impl xilem::AppState for AppState {
     fn keep_running(&self) -> bool {
-        true
+        !self.shutdown
     }
 }
 

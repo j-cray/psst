@@ -26,12 +26,12 @@ impl Delegate {
         if let Some(user_dirs) = UserDirs::new() {
             if let Some(download_dir) = user_dirs.download_dir() {
                 let path = download_dir.join(file_name);
+                let sender = _state.event_sender.clone();
+                let event_path = path.clone();
 
                 // Spawn a background thread so the download doesn't block the UI thread.
-                // TODO: wire the result back to AppState via a Xilem event channel once
-                // the event-loop integration is in place.
                 thread::spawn(move || {
-                    match ureq::get(&url)
+                    let result = match ureq::get(&url)
                         .call()
                         .and_then(|response| -> Result<(), ureq::Error> {
                             let mut file = fs::File::create(&path)?;
@@ -39,9 +39,20 @@ impl Delegate {
                             std::io::copy(&mut reader, &mut file)?;
                             Ok(())
                         }) {
-                        Ok(_) => log::info!("Cover art saved to Downloads folder."),
-                        Err(e) => log::error!("Failed to download artwork: {e}"),
-                    }
+                        Ok(_) => {
+                            log::info!("Cover art saved to Downloads folder.");
+                            Ok(())
+                        }
+                        Err(e) => {
+                            log::error!("Failed to download artwork: {e}");
+                            Err(e.to_string())
+                        }
+                    };
+                    
+                    let _ = sender.send(crate::data::AppEvent::ArtworkDownloaded {
+                        path: event_path,
+                        result,
+                    });
                 });
             }
         }

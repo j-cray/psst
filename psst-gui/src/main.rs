@@ -28,13 +28,48 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
         content,
     ));
 
-    flex_row((
-        sidebar(),
-        flex_col((
-            main_content,
-            playback_bar(),
+    xilem::core::fork(
+        flex_row((
+            sidebar(),
+            flex_col((
+                main_content,
+                playback_bar(),
+            )),
         )),
-    ))
+        xilem::view::task_raw(
+            |proxy, state: &mut AppState| {
+                let receiver = state.event_receiver.clone();
+                async move {
+                    let _ = xilem::tokio::task::spawn_blocking(move || {
+                        while let Ok(event) = receiver.recv() {
+                            if proxy.message(event).is_err() {
+                                break;
+                            }
+                        }
+                    }).await;
+                }
+            },
+            |state: &mut AppState, event: psst_gui::data::AppEvent| {
+                match event {
+                    psst_gui::data::AppEvent::ArtworkDownloaded { path, result } => {
+                        match result {
+                            Ok(()) => state.info_alert(format!("Artwork downloaded to {:?}", path)),
+                            Err(e) => state.error_alert(format!("Failed to download artwork: {}", e)),
+                        }
+                    }
+                    psst_gui::data::AppEvent::SessionConnected => {
+                        state.info_alert("Spotify session connected successfully".to_owned());
+                    }
+                    psst_gui::data::AppEvent::SessionError(e) => {
+                        state.error_alert(format!("Spotify session error: {}", e));
+                    }
+                    psst_gui::data::AppEvent::PlaybackStateChanged => {
+                        // To be implemented when playback controls are wired up 
+                    }
+                }
+            }
+        )
+    )
 }
 
 fn main() {

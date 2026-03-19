@@ -252,11 +252,11 @@ impl Config {
             .and_then(|c| c.username.as_deref())
     }
 
-    pub fn session(&self) -> SessionConfig {
-        SessionConfig {
-            login_creds: self.credentials.clone().expect("Missing credentials"),
+    pub fn session(&self) -> Option<SessionConfig> {
+        self.credentials.as_ref().map(|creds| SessionConfig {
+            login_creds: creds.clone(),
             proxy_url: Config::proxy(),
-        }
+        })
     }
 
     pub fn playback(&self) -> PlaybackConfig {
