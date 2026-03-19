@@ -243,13 +243,6 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
                                         // Update the webapi global session to ensure subsequent requests work
                                         if let Some(session_config) = state.config.session() {
                                             state.session.update_config(session_config);
-                                            let webapi = psst_gui::webapi::WebApi::new(
-                                                state.session.clone(),
-                                                psst_gui::data::Config::proxy().as_deref(),
-                                                psst_gui::data::Config::cache_dir(),
-                                                state.config.paginated_limit,
-                                            );
-                                            webapi.install_as_global();
                                         }
                                     }
                                     Err(err) => {
