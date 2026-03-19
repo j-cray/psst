@@ -270,11 +270,12 @@ fn main() {
     let player_loop_sender = state.event_sender.clone();
 
     std::thread::spawn(move || {
-        // The audio_output must be kept alive for the player to function. 
         // This thread acts as the actor loop for the Player. In this design, 
         // instead of the player yielding outbound events directly to the UI, 
         // the player actor consumes its own internal state events and commands 
         // through this receiver, processing them synchronously.
+        
+        // Keep audio_output alive for the player's lifetime; dropping it would close the device.
         let _audio_output = audio_output;
         
         let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {

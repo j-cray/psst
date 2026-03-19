@@ -15,6 +15,8 @@ pub fn login_view(state: &AppState) -> impl WidgetView<Edit<AppState>> {
         }
     );
     
+    // TODO: Xilem's text_input currently has no masking/password mode in the public API.
+    // Displaying passwords in plaintext is a security UX issue that needs to be fixed.
     let password_input = text_input(
         auth.password.clone(),
         |state: &mut AppState, new_val| {

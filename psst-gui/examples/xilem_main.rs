@@ -3,7 +3,7 @@ use xilem::masonry::dpi::LogicalSize;
 use xilem::{
     core::Edit,
     view::{button, flex_col, flex_row, label},
-    window, AppState, EventLoop, WidgetView, WindowId, Xilem,
+    AppState, EventLoop, WidgetView, WindowOptions, Xilem,
 };
 
 #[derive(Clone, Debug)]
@@ -11,7 +11,6 @@ struct MyState {
     count: i32,
     nav_title: String,
     theme: AppTheme,
-    window_id: WindowId,
 }
 
 impl Default for MyState {
@@ -20,7 +19,6 @@ impl Default for MyState {
             count: 0,
             nav_title: "Home".to_string(),
             theme: AppTheme::dark(),
-            window_id: WindowId::next(),
         }
     }
 }
@@ -79,17 +77,15 @@ fn app_logic(state: &mut MyState) -> impl WidgetView<AppEdit> {
 }
 
 fn main() {
-    let app = Xilem::new(MyState::default(), |state| {
-        let min_width = state.theme.grid(65.0);
-        let min_height = state.theme.grid(50.0);
+    let state = MyState::default();
+    let min_width = state.theme.grid(65.0);
+    let min_height = state.theme.grid(50.0);
 
-        std::iter::once(
-            window(state.window_id, "Psst", app_logic(state)).with_options(move |opts| {
-                opts.with_min_inner_size(LogicalSize::new(min_width, min_height))
-                    .with_initial_inner_size(LogicalSize::new(min_width * 1.5, min_height * 1.5))
-            }),
-        )
-    });
+    let window_options = WindowOptions::new("Psst")
+        .with_min_inner_size(LogicalSize::new(min_width, min_height))
+        .with_initial_inner_size(LogicalSize::new(min_width * 1.5, min_height * 1.5));
+
+    let app = Xilem::new_simple(state, app_logic, window_options);
 
     app.run_in(EventLoop::with_user_event()).unwrap();
 }
