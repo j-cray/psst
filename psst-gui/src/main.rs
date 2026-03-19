@@ -19,6 +19,40 @@ fn topbar(state: &AppState) -> impl WidgetView<Edit<AppState>> {
 }
 
 fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
+    if state.nav == Nav::Home {
+        if state.home_detail.made_for_you.state() == psst_gui::data::PromiseState::Empty {
+            state.home_detail.made_for_you.defer_default();
+            let sender = state.event_sender.clone();
+            std::thread::spawn(move || {
+                let res = psst_gui::webapi::WebApi::global().get_made_for_you();
+                let _ = sender.send(psst_gui::data::AppEvent::MadeForYouLoaded(res));
+            });
+        }
+        if state.home_detail.user_top_mixes.state() == psst_gui::data::PromiseState::Empty {
+            state.home_detail.user_top_mixes.defer_default();
+            let sender = state.event_sender.clone();
+            std::thread::spawn(move || {
+                let res = psst_gui::webapi::WebApi::global().get_top_mixes();
+                let _ = sender.send(psst_gui::data::AppEvent::TopMixesLoaded(res));
+            });
+        }
+        if state.home_detail.best_of_artists.state() == psst_gui::data::PromiseState::Empty {
+            state.home_detail.best_of_artists.defer_default();
+            let sender = state.event_sender.clone();
+            std::thread::spawn(move || {
+                let res = psst_gui::webapi::WebApi::global().best_of_artists();
+                let _ = sender.send(psst_gui::data::AppEvent::BestOfArtistsLoaded(res));
+            });
+        }
+        if state.home_detail.recommended_stations.state() == psst_gui::data::PromiseState::Empty {
+            state.home_detail.recommended_stations.defer_default();
+            let sender = state.event_sender.clone();
+            std::thread::spawn(move || {
+                let res = psst_gui::webapi::WebApi::global().recommended_stations();
+                let _ = sender.send(psst_gui::data::AppEvent::RecommendedStationsLoaded(res));
+            });
+        }
+    }
     let content = match state.nav {
         Nav::Home => home_view(state).boxed(),
         Nav::SearchResults(_) => search_view(state).boxed(),
@@ -40,54 +74,71 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
                 playback_bar(state),
             )),
         )),
-        xilem::view::task_raw(
-            |proxy, state: &mut AppState| {
-                let receiver = state.event_receiver.clone();
-                async move {
-                    let _ = xilem::tokio::task::spawn_blocking(move || {
-                        while let Ok(event) = receiver.recv() {
-                            if proxy.message(event).is_err() {
-                                break;
+        xilem::core::memoize(
+            (),
+            |()| {
+                xilem::view::task_raw(
+                    |proxy, state: &mut AppState| {
+                        let receiver = state.event_receiver.clone();
+                        async move {
+                            let _ = xilem::tokio::task::spawn_blocking(move || {
+                                while let Ok(event) = receiver.recv() {
+                                    if proxy.message(event).is_err() {
+                                        break;
+                                    }
+                                }
+                            }).await;
+                        }
+                    },
+                    |state: &mut AppState, event: psst_gui::data::AppEvent| {
+                        match event {
+                            psst_gui::data::AppEvent::ArtworkDownloaded { path, result } => {
+                                match result {
+                                    Ok(()) => state.info_alert(format!("Artwork downloaded to {:?}", path)),
+                                    Err(e) => state.error_alert(format!("Failed to download artwork: {}", e)),
+                                }
+                            }
+                            psst_gui::data::AppEvent::SessionConnected => {
+                                state.info_alert("Spotify session connected successfully".to_owned());
+                            }
+                            psst_gui::data::AppEvent::SessionError(e) => {
+                                state.error_alert(format!("Spotify session error: {}", e));
+                            }
+                            psst_gui::data::AppEvent::PlaybackStateChanged => {
+                                // To be implemented when playback controls are wired up 
+                            }
+                            psst_gui::data::AppEvent::CommandPlay(item) => {
+                                log::info!("Backend received Play command for: {}", item.name());
+                                state.info_alert(format!("Playing: {}", item.name()));
+                                // player_sender.send(PlayerCommand::LoadAndPlay { item })
+                            }
+                            psst_gui::data::AppEvent::CommandPause => {
+                                log::info!("Backend received Pause command");
+                                state.info_alert("Playback paused".to_string());
+                            }
+                            psst_gui::data::AppEvent::CommandResume => {
+                                log::info!("Backend received Resume command");
+                                state.info_alert("Playback resumed".to_string());
+                            }
+                            psst_gui::data::AppEvent::CommandStop => {
+                                log::info!("Backend received Stop command");
+                                state.info_alert("Playback stopped".to_string());
+                            }
+                            psst_gui::data::AppEvent::MadeForYouLoaded(res) => {
+                                state.home_detail.made_for_you.resolve_or_reject((), res);
+                            }
+                            psst_gui::data::AppEvent::TopMixesLoaded(res) => {
+                                state.home_detail.user_top_mixes.resolve_or_reject((), res);
+                            }
+                            psst_gui::data::AppEvent::BestOfArtistsLoaded(res) => {
+                                state.home_detail.best_of_artists.resolve_or_reject((), res);
+                            }
+                            psst_gui::data::AppEvent::RecommendedStationsLoaded(res) => {
+                                state.home_detail.recommended_stations.resolve_or_reject((), res);
                             }
                         }
-                    }).await;
-                }
-            },
-            |state: &mut AppState, event: psst_gui::data::AppEvent| {
-                match event {
-                    psst_gui::data::AppEvent::ArtworkDownloaded { path, result } => {
-                        match result {
-                            Ok(()) => state.info_alert(format!("Artwork downloaded to {:?}", path)),
-                            Err(e) => state.error_alert(format!("Failed to download artwork: {}", e)),
-                        }
                     }
-                    psst_gui::data::AppEvent::SessionConnected => {
-                        state.info_alert("Spotify session connected successfully".to_owned());
-                    }
-                    psst_gui::data::AppEvent::SessionError(e) => {
-                        state.error_alert(format!("Spotify session error: {}", e));
-                    }
-                    psst_gui::data::AppEvent::PlaybackStateChanged => {
-                        // To be implemented when playback controls are wired up 
-                    }
-                    psst_gui::data::AppEvent::CommandPlay(item) => {
-                        log::info!("Backend received Play command for: {}", item.name());
-                        state.info_alert(format!("Playing: {}", item.name()));
-                        // player_sender.send(PlayerCommand::LoadAndPlay { item })
-                    }
-                    psst_gui::data::AppEvent::CommandPause => {
-                        log::info!("Backend received Pause command");
-                        state.info_alert("Playback paused".to_string());
-                    }
-                    psst_gui::data::AppEvent::CommandResume => {
-                        log::info!("Backend received Resume command");
-                        state.info_alert("Playback resumed".to_string());
-                    }
-                    psst_gui::data::AppEvent::CommandStop => {
-                        log::info!("Backend received Stop command");
-                        state.info_alert("Playback stopped".to_string());
-                    }
-                }
+                )
             }
         )
     )
@@ -96,6 +147,14 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
 fn main() {
     let config = Config::load().unwrap_or_default();
     let state = AppState::default_with_config(config.clone());
+
+    let webapi = psst_gui::webapi::WebApi::new(
+        state.session.clone(),
+        Config::proxy().as_deref(),
+        Config::cache_dir(),
+        config.paginated_limit,
+    );
+    webapi.install_as_global();
 
     let window_options = WindowOptions::new("Psst Xilem")
         .with_min_inner_size(LogicalSize::new(800.0, 600.0))

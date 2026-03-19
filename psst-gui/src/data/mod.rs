@@ -102,6 +102,10 @@ pub enum AppEvent {
     CommandPause,
     CommandResume,
     CommandStop,
+    MadeForYouLoaded(Result<crate::data::MixedView, crate::error::Error>),
+    TopMixesLoaded(Result<crate::data::MixedView, crate::error::Error>),
+    BestOfArtistsLoaded(Result<crate::data::MixedView, crate::error::Error>),
+    RecommendedStationsLoaded(Result<crate::data::MixedView, crate::error::Error>),
 }
 
 
@@ -614,7 +618,7 @@ pub struct HomeDetail {
 
 
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MixedView {
     pub title: Arc<str>,
     pub playlists: Vec<Playlist>,

@@ -13,7 +13,7 @@ pub struct ArtistDetail {
     pub artist_info: Promise<ArtistInfo, ArtistLink>,
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Artist {
     pub id: Arc<str>,
     pub name: Arc<str>,
