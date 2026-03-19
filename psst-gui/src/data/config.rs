@@ -112,6 +112,7 @@ impl Authentication {
 const APP_NAME: &str = "Psst";
 const CONFIG_FILENAME: &str = "config.json";
 const PROXY_ENV_VAR: &str = "SOCKS_PROXY";
+const DEFAULT_GRID_UNIT: f64 = 8.0;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
@@ -146,7 +147,7 @@ impl Default for Config {
             last_route: Default::default(),
             queue_behavior: Default::default(),
             show_track_cover: Default::default(),
-            window_size: Size::new(80.0 * 8.0, 100.0 * 8.0), // Hardcoded instead of theme::grid
+            window_size: Size::new(80.0 * DEFAULT_GRID_UNIT, 100.0 * DEFAULT_GRID_UNIT),
             slider_scroll_scale: Default::default(),
             sort_order: Default::default(),
             sort_criteria: Default::default(),
@@ -187,31 +188,50 @@ impl Config {
     }
 
     pub fn load() -> Option<Config> {
-        let path = Self::config_path().expect("Failed to get config path");
+        let path = Self::config_path()?;
         if let Ok(file) = File::open(&path) {
             log::info!("loading config: {:?}", &path);
             let reader = BufReader::new(file);
-            Some(serde_json::from_reader(reader).expect("Failed to read config"))
+            match serde_json::from_reader(reader) {
+                Ok(config) => Some(config),
+                Err(err) => {
+                    log::error!("failed to parse config from {:?}: {}", &path, err);
+                    None
+                }
+            }
         } else {
             None
         }
     }
 
-    pub fn save(&self) {
-        let dir = Self::config_dir().expect("Failed to get config dir");
-        let path = Self::config_path().expect("Failed to get config path");
-        mkdir_if_not_exists(&dir).expect("Failed to create config dir");
+    pub fn save(&self) -> Result<(), std::io::Error> {
+        let dir = Self::config_dir().ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "Failed to get config dir"))?;
+        let path = Self::config_path().ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "Failed to get config path"))?;
+        if let Err(err) = mkdir_if_not_exists(&dir) {
+            log::error!("Failed to create config dir: {}", err);
+            return Err(err);
+        }
 
         let mut options = OpenOptions::new();
         options.write(true).create(true).truncate(true);
         #[cfg(target_family = "unix")]
         options.mode(0o600);
 
-        let file = options.open(&path).expect("Failed to create config");
+        let file = match options.open(&path) {
+            Ok(file) => file,
+            Err(err) => {
+                log::error!("Failed to create config file: {}", err);
+                return Err(err);
+            }
+        };
         let writer = BufWriter::new(file);
 
-        serde_json::to_writer_pretty(writer, self).expect("Failed to write config");
+        if let Err(err) = serde_json::to_writer_pretty(writer, self) {
+            log::error!("Failed to write config: {}", err);
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, err));
+        }
         log::info!("saved config: {:?}", &path);
+        Ok(())
     }
 
     pub fn has_credentials(&self) -> bool {

@@ -299,7 +299,7 @@ impl AppState {
     pub fn set_queue_behavior(&mut self, queue_behavior: QueueBehavior) {
         self.playback.queue_behavior = queue_behavior;
         self.config.queue_behavior = queue_behavior;
-        self.config.save();
+        let _ = self.config.save();
     }
 }
 

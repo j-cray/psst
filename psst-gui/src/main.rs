@@ -8,7 +8,7 @@ use psst_gui::ui::{
     home::home_view, playback::playback_bar, sidebar::sidebar,
 };
 
-fn topbar(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
+fn topbar(state: &AppState) -> impl WidgetView<Edit<AppState>> {
     flex_row((
         label("Back"),
         label(format!("Route: {:?}", state.nav)),
