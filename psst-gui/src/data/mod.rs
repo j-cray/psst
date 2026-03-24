@@ -98,7 +98,7 @@ pub enum AppEvent {
     ArtworkDownloaded { path: std::path::PathBuf, result: Result<(), String> },
     SessionConnected,
     SessionError(String),
-    PlaybackStateChanged,
+    PlaybackStateChanged(crate::data::playback::PlaybackState),
     CommandPlay(crate::data::playback::Playable),
     CommandPause,
     CommandResume,

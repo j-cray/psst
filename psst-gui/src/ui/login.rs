@@ -36,7 +36,11 @@ pub fn login_view(state: &AppState) -> impl WidgetView<Edit<AppState>> {
         label("Log In with Spotify Browser"),
         |state: &mut AppState| {
             state.preferences.auth.result = Promise::Deferred { def: () };
-            let _ = state.event_sender.send(AppEvent::SubmitOAuthLogin(12345));
+            let port = std::net::TcpListener::bind("127.0.0.1:0")
+                .and_then(|l| l.local_addr())
+                .map(|addr| addr.port())
+                .unwrap_or(12345);
+            let _ = state.event_sender.send(AppEvent::SubmitOAuthLogin(port));
         }
     );
     

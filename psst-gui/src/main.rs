@@ -160,8 +160,8 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
                             psst_gui::data::AppEvent::SessionError(e) => {
                                 state.error_alert(format!("Spotify session error: {}", e));
                             }
-                            psst_gui::data::AppEvent::PlaybackStateChanged => {
-                                // To be implemented when playback controls are wired up 
+                            psst_gui::data::AppEvent::PlaybackStateChanged(new_state) => {
+                                state.playback.state = new_state;
                             }
                             psst_gui::data::AppEvent::CommandPlay(item) => {
                                 tracing::info!("Backend received Play command for: {:?}", item.name());
@@ -225,9 +225,9 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
                                 state.with_library_mut(|lib| lib.saved_albums.resolve_or_reject((), res));
                             }
                             psst_gui::data::AppEvent::ImageLoaded(_) => {
-                                // No-op for state, modifying anything triggers re-render, 
-                                // wait, just evaluating event triggers Xilem rebuild anyway.
-                                // If needed: state.config = state.config.clone();
+                                // Trigger a Xilem rebuild so the newly cached image is rendered.
+                                // Xilem rebuilds on every message dispatch, but we make the intent explicit.
+                                state.nav = state.nav.clone();
                             }
                             psst_gui::data::AppEvent::SubmitLogin => {
                                 let auth = state.preferences.auth.clone();
