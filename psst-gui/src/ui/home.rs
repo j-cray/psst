@@ -74,7 +74,7 @@ fn render_mixed_view(state: &AppState, title: &str, promise: &Promise<MixedView>
                 let mut current_row = Vec::new();
                 for item in row {
                     current_row.push(item);
-                    if current_row.len() == 5 {
+                    if current_row.len() == 5 { // TODO: use dynamic row count based on window width
                         rows.push(flex_row(current_row).boxed());
                         current_row = Vec::new();
                     }

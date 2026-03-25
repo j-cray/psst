@@ -30,7 +30,7 @@ pub fn search_view(state: &AppState) -> impl WidgetView<Edit<AppState>> {
             
             if !val.artists.is_empty() {
                 let mut rows = Vec::new();
-                for chunk in val.artists.chunks(5) {
+                for chunk in val.artists.chunks(5) { // TODO: use dynamic row count based on window width
                     let mut row = Vec::new();
                     for art in chunk {
                         let img_url = art.image(150.0, 150.0).map(|img| img.url.clone());
@@ -52,7 +52,7 @@ pub fn search_view(state: &AppState) -> impl WidgetView<Edit<AppState>> {
 
             if !val.albums.is_empty() {
                 let mut rows = Vec::new();
-                for chunk in val.albums.chunks(5) {
+                for chunk in val.albums.chunks(5) { // TODO: use dynamic row count based on window width
                     let mut row = Vec::new();
                     for a in chunk {
                         let img_url = a.image(150.0, 150.0).map(|img| img.url.clone());
@@ -74,7 +74,7 @@ pub fn search_view(state: &AppState) -> impl WidgetView<Edit<AppState>> {
 
             if !val.playlists.is_empty() {
                 let mut rows = Vec::new();
-                for chunk in val.playlists.chunks(5) {
+                for chunk in val.playlists.chunks(5) { // TODO: use dynamic row count based on window width
                     let mut row = Vec::new();
                     for p in chunk {
                         let img_url = p.image(150.0, 150.0).map(|img| img.url.clone());
@@ -96,7 +96,7 @@ pub fn search_view(state: &AppState) -> impl WidgetView<Edit<AppState>> {
 
             if !val.shows.is_empty() {
                 let mut rows = Vec::new();
-                for chunk in val.shows.chunks(5) {
+                for chunk in val.shows.chunks(5) { // TODO: use dynamic row count based on window width
                     let mut row = Vec::new();
                     for s in chunk {
                         let img_url = s.image(150.0, 150.0).map(|img| img.url.clone());
@@ -118,7 +118,7 @@ pub fn search_view(state: &AppState) -> impl WidgetView<Edit<AppState>> {
 
             if !val.tracks.is_empty() {
                 let mut rows = Vec::new();
-                for chunk in val.tracks.chunks(5) {
+                for chunk in val.tracks.chunks(5) { // TODO: use dynamic row count based on window width
                     let mut row = Vec::new();
                     for t in chunk {
                         let img_url = t.album.as_ref().and_then(|a| a.image(150.0, 150.0)).map(|img| img.url.clone());

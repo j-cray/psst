@@ -13,7 +13,6 @@ fn topbar() -> impl WidgetView<Edit<AppState>> {
     flex_row((
         button(label("Back"), |s: &mut AppState| s.navigate_back()),
         FlexSpacer::Flex(1.0),
-        label("Search"),
     ))
 }
 

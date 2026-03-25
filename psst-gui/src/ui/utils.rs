@@ -17,8 +17,8 @@ fn failed_images() -> &'static Mutex<HashSet<Arc<str>>> {
     FAILED_IMAGES.get_or_init(|| Mutex::new(HashSet::new()))
 }
 
-fn decoded_images() -> &'static Mutex<lru::LruCache<Arc<str>, ImageData>> {
-    static DECODED_IMAGES: OnceLock<Mutex<lru::LruCache<Arc<str>, ImageData>>> = OnceLock::new();
+fn decoded_images() -> &'static Mutex<lru::LruCache<Arc<str>, Arc<ImageData>>> {
+    static DECODED_IMAGES: OnceLock<Mutex<lru::LruCache<Arc<str>, Arc<ImageData>>>> = OnceLock::new();
     DECODED_IMAGES.get_or_init(|| Mutex::new(lru::LruCache::new(std::num::NonZeroUsize::new(200).unwrap())))
 }
 
@@ -27,7 +27,7 @@ pub fn image_widget(state: &AppState, image_link: Option<Arc<str>>) -> impl Widg
         {
             let mut decoded = decoded_images().lock().unwrap();
             if let Some(img) = decoded.get(&uri) {
-                return xilem_image(img.clone()).boxed();
+                return xilem_image((**img).clone()).boxed();
             }
         }
         
@@ -48,7 +48,7 @@ pub fn image_widget(state: &AppState, image_link: Option<Arc<str>>) -> impl Widg
                 width,
                 height,
             };
-            decoded_images().lock().unwrap().put(uri.clone(), image_data.clone());
+            decoded_images().lock().unwrap().put(uri.clone(), Arc::new(image_data.clone()));
             xilem_image(image_data).boxed()
         } else {
             let mut in_flight = in_flight_images().lock().unwrap();
