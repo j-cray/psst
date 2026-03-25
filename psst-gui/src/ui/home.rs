@@ -1,5 +1,5 @@
 use xilem::{
-    view::{flex_col, flex_row, label, portal},
+    view::{flex_col, flex_row, label},
     WidgetView,
 };
 use xilem::core::Edit;
@@ -70,7 +70,19 @@ fn render_mixed_view(state: &AppState, title: &str, promise: &Promise<MixedView>
             if row.is_empty() {
                 label("No items").boxed()
             } else {
-                portal(flex_row(row)).boxed()
+                let mut rows = Vec::new();
+                let mut current_row = Vec::new();
+                for item in row {
+                    current_row.push(item);
+                    if current_row.len() == 5 {
+                        rows.push(flex_row(current_row).boxed());
+                        current_row = Vec::new();
+                    }
+                }
+                if !current_row.is_empty() {
+                    rows.push(flex_row(current_row).boxed());
+                }
+                flex_col(rows).boxed()
             }
         }
         Promise::Rejected { .. } => label("Failed to load").boxed(),

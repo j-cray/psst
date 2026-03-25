@@ -9,7 +9,7 @@ use psst_gui::ui::{
     library::library_view, playlist::playlist_detail_view, preferences::preferences_view,
 };
 
-fn topbar(_state: &AppState) -> impl WidgetView<Edit<AppState>> {
+fn topbar() -> impl WidgetView<Edit<AppState>> {
     flex_row((
         button(label("Back"), |s: &mut AppState| s.navigate_back()),
         FlexSpacer::Flex(1.0),
@@ -114,7 +114,7 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
     };
 
     let main_content = flex_col((
-        topbar(state),
+        topbar(),
         portal(content),
     ));
 
@@ -245,7 +245,13 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
                                         let _ = sender.send(psst_gui::data::AppEvent::LoginResult(Err(format!("Failed to open browser: {}", e))));
                                         return;
                                     }
-                                    let listener = shared_listener.lock().unwrap().take().expect("Listener already taken");
+                                    let listener = match shared_listener.lock().unwrap().take() {
+                                        Some(l) => l,
+                                        None => {
+                                            let _ = sender.send(psst_gui::data::AppEvent::LoginResult(Err("OAuth listener already consumed".into())));
+                                            return;
+                                        }
+                                    };
                                     let code = match psst_core::oauth::get_authcode_listener(listener, std::time::Duration::from_secs(300)) {
                                         Ok(c) => c,
                                         Err(e) => {

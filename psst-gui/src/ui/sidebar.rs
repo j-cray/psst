@@ -12,7 +12,7 @@ pub fn sidebar() -> impl WidgetView<Edit<AppState>> {
         
         // Navigation buttons
         button(label("Home"), |state: &mut AppState| state.navigate(&Nav::Home)),
-        button(label("Search"), |state: &mut AppState| state.navigate(&Nav::SearchResults(state.search.input.clone()))), // Needs special handling for focus
+        button(label("Search"), |state: &mut AppState| state.navigate(&Nav::SearchResults(state.search.input.clone()))),
         button(label("Saved Tracks"), |state: &mut AppState| state.navigate(&Nav::SavedTracks)),
         button(label("Saved Albums"), |state: &mut AppState| state.navigate(&Nav::SavedAlbums)),
         button(label("Podcasts"), |state: &mut AppState| state.navigate(&Nav::Shows)),

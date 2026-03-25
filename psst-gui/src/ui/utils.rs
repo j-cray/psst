@@ -22,8 +22,6 @@ fn decoded_images() -> &'static Mutex<lru::LruCache<Arc<str>, ImageData>> {
     DECODED_IMAGES.get_or_init(|| Mutex::new(lru::LruCache::new(std::num::NonZeroUsize::new(200).unwrap())))
 }
 
-
-
 pub fn image_widget(state: &AppState, image_link: Option<Arc<str>>) -> impl WidgetView<Edit<AppState>> {
     if let Some(uri) = image_link {
         {

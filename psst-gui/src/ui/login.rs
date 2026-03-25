@@ -35,6 +35,9 @@ pub fn login_view(state: &AppState) -> impl WidgetView<Edit<AppState>> {
     let oauth_button = button(
         label("Log In with Spotify Browser"),
         |state: &mut AppState| {
+            if matches!(state.preferences.auth.result, Promise::Deferred { .. }) {
+                return;
+            }
             state.preferences.auth.result = Promise::Deferred { def: () };
             let listener = std::net::TcpListener::bind("127.0.0.1:0")
                 .unwrap_or_else(|_| std::net::TcpListener::bind("127.0.0.1:12345").unwrap());
