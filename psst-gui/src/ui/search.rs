@@ -13,15 +13,13 @@ pub fn search_view(state: &AppState) -> impl WidgetView<Edit<AppState>> {
     let input = text_input(
         state.search.input.to_string(),
         |state: &mut AppState, new_val| {
-            state.search.input = new_val.clone().into();
-            let query = state.search.input.clone();
-            if !query.is_empty() {
-                state.navigate(&Nav::SearchResults(query.into()));
-            } else {
-                state.navigate(&Nav::SearchResults("".into()));
-            }
+            state.search.input = new_val.into();
         }
     );
+
+    let search_button = button(label("Search"), |state: &mut AppState| {
+        state.navigate(&Nav::SearchResults(state.search.input.clone().into()));
+    });
 
     let results = match &state.search.results {
         Promise::Empty => label("Enter a search query to see results...").boxed(),
@@ -131,7 +129,7 @@ pub fn search_view(state: &AppState) -> impl WidgetView<Edit<AppState>> {
     };
 
     flex_col((
-        flex_row((label("Search: "), input)),
+        flex_row((label("Search: "), input, search_button)),
         results,
     ))
 }

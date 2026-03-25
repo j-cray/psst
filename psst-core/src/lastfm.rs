@@ -90,6 +90,8 @@ pub fn get_lastfm_token_listener(
     socket_address: SocketAddr,
     timeout: Duration,
 ) -> Result<String, Error> {
+    let listener = std::net::TcpListener::bind(socket_address)
+        .map_err(|e| Error::IoError(e))?;
     // Use the shared listener function, specifying "token" as the parameter
-    listen_for_callback_parameter(socket_address, timeout, "token")
+    listen_for_callback_parameter(listener, timeout, "token")
 }

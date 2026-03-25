@@ -1,5 +1,5 @@
 use xilem::masonry::dpi::LogicalSize;
-use xilem::view::{flex_col, flex_row, label, portal, FlexSpacer, FlexExt};
+use xilem::view::{flex_col, flex_row, label, portal, button, FlexSpacer, FlexExt};
 use xilem::{EventLoop, WindowOptions, Xilem, WidgetView};
 use xilem::core::Edit;
 use psst_gui::data::{AppState, Config, nav::Nav};
@@ -9,10 +9,9 @@ use psst_gui::ui::{
     library::library_view, playlist::playlist_detail_view, preferences::preferences_view,
 };
 
-fn topbar(state: &AppState) -> impl WidgetView<Edit<AppState>> {
+fn topbar(_state: &AppState) -> impl WidgetView<Edit<AppState>> {
     flex_row((
-        label("Back"),
-        label(format!("Route: {:?}", state.nav)),
+        button(label("Back"), |s: &mut AppState| s.navigate_back()),
         FlexSpacer::Flex(1.0),
         label("Search"),
     ))
@@ -80,9 +79,9 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
     let root_layout = if !state.config.has_credentials() {
         psst_gui::ui::login::login_view(state).boxed()
     } else {
-        if let Nav::SearchResults(ref query) = state.nav {
+        if let Nav::SearchResults(_) = state.nav {
             let search_query = psst_gui::data::SearchQuery {
-                input: query.clone().into(),
+                input: state.search.input.clone(),
                 topic: state.search.topic,
             };
             let needs_fetch = match &state.search.results {
@@ -91,7 +90,7 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
                 psst_gui::data::Promise::Resolved { def, .. } |
                 psst_gui::data::Promise::Rejected { def, .. } => def != &search_query,
             };
-            if needs_fetch && !query.is_empty() {
+            if needs_fetch && !state.search.input.is_empty() {
                 state.search.results.defer(search_query.clone());
                 let sender = state.event_sender.clone();
                 let limit = state.config.paginated_limit;
@@ -238,7 +237,7 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
                                     let _ = sender.send(psst_gui::data::AppEvent::LoginResult(res));
                                 });
                             }
-                            psst_gui::data::AppEvent::SubmitOAuthLogin(port) => {
+                            psst_gui::data::AppEvent::SubmitOAuthLogin(port, shared_listener) => {
                                 let sender = state.event_sender.clone();
                                 std::thread::spawn(move || {
                                     let (auth_url, pkce_verifier) = psst_core::oauth::generate_auth_url(port);
@@ -246,8 +245,8 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> {
                                         let _ = sender.send(psst_gui::data::AppEvent::LoginResult(Err(format!("Failed to open browser: {}", e))));
                                         return;
                                     }
-                                    let bind_addr = std::net::SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)), port);
-                                    let code = match psst_core::oauth::get_authcode_listener(bind_addr, std::time::Duration::from_secs(300)) {
+                                    let listener = shared_listener.lock().unwrap().take().expect("Listener already taken");
+                                    let code = match psst_core::oauth::get_authcode_listener(listener, std::time::Duration::from_secs(300)) {
                                         Ok(c) => c,
                                         Err(e) => {
                                             let _ = sender.send(psst_gui::data::AppEvent::LoginResult(Err(format!("OAuth failed or timed out: {:?}", e))));
@@ -338,7 +337,20 @@ fn main() {
         
         let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             for event in player_receiver {
+                let gui_state_change = match &event {
+                    psst_core::player::PlayerEvent::Playing { .. }
+                    | psst_core::player::PlayerEvent::Resuming { .. } => Some(psst_gui::data::PlaybackState::Playing),
+                    psst_core::player::PlayerEvent::Pausing { .. } => Some(psst_gui::data::PlaybackState::Paused),
+                    psst_core::player::PlayerEvent::Loading { .. } => Some(psst_gui::data::PlaybackState::Loading),
+                    psst_core::player::PlayerEvent::Stopped => Some(psst_gui::data::PlaybackState::Stopped),
+                    _ => None,
+                };
+                
                 player.handle(event);
+                
+                if let Some(new_state) = gui_state_change {
+                    let _ = player_loop_sender.send(psst_gui::data::AppEvent::PlaybackStateChanged(new_state));
+                }
             }
         }));
         

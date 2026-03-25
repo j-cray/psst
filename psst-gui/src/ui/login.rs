@@ -36,11 +36,11 @@ pub fn login_view(state: &AppState) -> impl WidgetView<Edit<AppState>> {
         label("Log In with Spotify Browser"),
         |state: &mut AppState| {
             state.preferences.auth.result = Promise::Deferred { def: () };
-            let port = std::net::TcpListener::bind("127.0.0.1:0")
-                .and_then(|l| l.local_addr())
-                .map(|addr| addr.port())
-                .unwrap_or(12345);
-            let _ = state.event_sender.send(AppEvent::SubmitOAuthLogin(port));
+            let listener = std::net::TcpListener::bind("127.0.0.1:0")
+                .unwrap_or_else(|_| std::net::TcpListener::bind("127.0.0.1:12345").unwrap());
+            let port = listener.local_addr().map(|addr| addr.port()).unwrap_or(12345);
+            let shared_listener = std::sync::Arc::new(std::sync::Mutex::new(Some(listener)));
+            let _ = state.event_sender.send(AppEvent::SubmitOAuthLogin(port, shared_listener));
         }
     );
     

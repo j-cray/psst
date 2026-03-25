@@ -112,7 +112,7 @@ pub enum AppEvent {
     SavedAlbumsLoaded(Result<crate::data::SavedAlbums, crate::error::Error>),
     ImageLoaded(std::sync::Arc<str>),
     SubmitLogin,
-    SubmitOAuthLogin(u16),
+    SubmitOAuthLogin(u16, std::sync::Arc<std::sync::Mutex<Option<std::net::TcpListener>>>),
     LoginResult(Result<psst_core::connection::Credentials, String>),
 }
 
