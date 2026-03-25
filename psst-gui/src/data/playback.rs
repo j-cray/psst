@@ -1,7 +1,5 @@
 use std::{fmt, sync::Arc, time::Duration};
 
-use druid::{im::Vector, Data, Lens};
-use druid_enums::Matcher;
 use psst_core::item_id::ItemId;
 use serde::{Deserialize, Serialize};
 
@@ -10,22 +8,22 @@ use super::{
     Track,
 };
 
-#[derive(Clone, Data, Lens)]
+#[derive(Clone)]
 pub struct Playback {
     pub state: PlaybackState,
     pub now_playing: Option<NowPlaying>,
     pub queue_behavior: QueueBehavior,
-    pub queue: Vector<QueueEntry>,
+    pub queue: Vec<QueueEntry>,
     pub volume: f64,
 }
 
-#[derive(Clone, Debug, Data, Lens)]
+#[derive(Clone, Debug)]
 pub struct QueueEntry {
     pub item: Playable,
     pub origin: PlaybackOrigin,
 }
 
-#[derive(Clone, Debug, Matcher)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Playable {
     Track(Arc<Track>),
     Episode(Arc<Episode>),
@@ -66,13 +64,9 @@ impl Playable {
     }
 }
 
-impl Data for Playable {
-    fn same(&self, other: &Self) -> bool {
-        self.same(other)
-    }
-}
 
-#[derive(Default, Copy, Clone, Debug, Data, Eq, PartialEq, Serialize, Deserialize)]
+
+#[derive(Default, Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum QueueBehavior {
     #[default]
     Sequential,
@@ -81,7 +75,7 @@ pub enum QueueBehavior {
     LoopAll,
 }
 
-#[derive(Copy, Clone, Debug, Data, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum PlaybackState {
     Loading,
     Playing,
@@ -89,7 +83,7 @@ pub enum PlaybackState {
     Stopped,
 }
 
-#[derive(Clone, Data, Lens)]
+#[derive(Clone)]
 pub struct NowPlaying {
     pub item: Playable,
     pub origin: PlaybackOrigin,
@@ -140,7 +134,7 @@ impl NowPlaying {
     }
 }
 
-#[derive(Clone, Debug, Data)]
+#[derive(Clone, Debug)]
 pub enum PlaybackOrigin {
     Home,
     Library,
@@ -182,9 +176,9 @@ impl fmt::Display for PlaybackOrigin {
     }
 }
 
-#[derive(Clone, Debug, Data)]
+#[derive(Clone, Debug)]
 pub struct PlaybackPayload {
     pub origin: PlaybackOrigin,
-    pub items: Vector<Playable>,
+    pub items: Vec<Playable>,
     pub position: usize,
 }

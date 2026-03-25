@@ -6,33 +6,20 @@ use oauth2::{
 use std::{
     io::{BufRead, BufReader, Write},
     net::TcpStream,
-    net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener},
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::mpsc,
     time::Duration,
 };
 use url::Url;
 
 pub fn listen_for_callback_parameter(
-    socket_address: SocketAddr,
+    listener: std::net::TcpListener,
     timeout: Duration,
     parameter_name: &'static str,
 ) -> Result<String, Error> {
     log::info!(
-        "starting callback listener for '{parameter_name}' on {socket_address:?}",
+        "starting callback listener for '{parameter_name}' on {:?}", listener.local_addr()
     );
-
-    // Create a simpler, linear flow
-    // 1. Bind the listener
-    let listener = match TcpListener::bind(socket_address) {
-        Ok(l) => {
-            log::info!("listener bound successfully");
-            l
-        }
-        Err(e) => {
-            log::error!("Failed to bind listener: {e}");
-            return Err(Error::IoError(e));
-        }
-    };
 
     // 2. Set up the channel for communication
     let (tx, rx) = mpsc::channel::<Result<String, Error>>();
@@ -113,10 +100,10 @@ fn extract_parameter_from_request(request_line: &str, parameter_name: &str) -> O
 }
 
 pub fn get_authcode_listener(
-    socket_address: SocketAddr,
+    listener: std::net::TcpListener,
     timeout: Duration,
 ) -> Result<AuthorizationCode, Error> {
-    listen_for_callback_parameter(socket_address, timeout, "code").map(AuthorizationCode::new)
+    listen_for_callback_parameter(listener, timeout, "code").map(AuthorizationCode::new)
 }
 
 pub fn send_success_response(stream: &mut TcpStream) {

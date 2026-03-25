@@ -1,19 +1,19 @@
 use std::{convert::TryFrom, sync::Arc, time::Duration};
 
-use druid::{im::Vector, lens::Map, Data, Lens};
+
 use itertools::Itertools;
 use psst_core::item_id::{ItemId, ItemIdType};
 use serde::{Deserialize, Serialize};
 
 use crate::data::{AlbumLink, ArtistLink};
 
-#[derive(Clone, Debug, Data, Lens, Deserialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct Track {
     #[serde(default)]
     pub id: TrackId,
     pub name: Arc<str>,
     pub album: Option<AlbumLink>,
-    pub artists: Vector<ArtistLink>,
+    pub artists: Vec<ArtistLink>,
     #[serde(rename = "duration_ms")]
     #[serde(deserialize_with = "super::utils::deserialize_millis")]
     pub duration: Duration,
@@ -31,27 +31,9 @@ pub struct Track {
 }
 
 impl Track {
-    pub fn lens_artist_name() -> impl Lens<Self, Arc<str>> {
-        Map::new(
-            |track: &Self| track.artist_name(),
-            |_, _| {
-                // Immutable.
-            },
-        )
-    }
-
-    pub fn lens_album_name() -> impl Lens<Self, Arc<str>> {
-        Map::new(
-            |track: &Self| track.album_name(),
-            |_, _| {
-                // Immutable.
-            },
-        )
-    }
-
     pub fn artist_name(&self) -> Arc<str> {
         self.artists
-            .front()
+            .first()
             .map(|artist| artist.name.clone())
             .unwrap_or_else(|| "Unknown".into())
     }
@@ -75,7 +57,7 @@ impl Track {
     }
 }
 
-#[derive(Clone, Debug, Data, Lens, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TrackLines {
     pub start_time_ms: String,
@@ -88,11 +70,7 @@ pub struct TrackLines {
 #[serde(into = "String")]
 pub struct TrackId(pub ItemId);
 
-impl Data for TrackId {
-    fn same(&self, other: &Self) -> bool {
-        self.0 == other.0
-    }
-}
+
 
 impl TryFrom<String> for TrackId {
     type Error = &'static str;
@@ -110,13 +88,13 @@ impl From<TrackId> for String {
     }
 }
 
-#[derive(Clone, Data, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[allow(dead_code)]
 pub struct AudioAnalysis {
-    pub segments: Vector<AudioSegment>,
+    pub segments: Vec<AudioSegment>,
 }
 
-#[derive(Clone, Data, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[allow(dead_code)]
 pub struct AudioSegment {
     #[serde(flatten)]
@@ -126,7 +104,7 @@ pub struct AudioSegment {
     pub loudness_max_time: f64,
 }
 
-#[derive(Clone, Data, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[allow(dead_code)]
 pub struct TimeInterval {
     #[serde(deserialize_with = "super::utils::deserialize_secs")]

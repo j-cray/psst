@@ -1,7 +1,6 @@
-use druid::{Data, Lens};
 use regex::{Regex, RegexBuilder};
 
-#[derive(Clone, Default, Debug, Data, Lens)]
+#[derive(Clone, Default, Debug)]
 pub struct Finder {
     pub focused_result: usize,
     pub results: usize,
